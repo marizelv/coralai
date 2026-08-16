@@ -2,19 +2,15 @@
 <html lang="en">
 
 <head>
-
     <meta charset="UTF-8">
-
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>Coral Species Classification AI</title>
 
     <!-- TensorFlow.js -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0"></script>
 
     <style>
-
         * {
             box-sizing: border-box;
         }
@@ -28,7 +24,6 @@
         }
 
         .container {
-            width: 100%;
             max-width: 900px;
             margin: auto;
             background: white;
@@ -39,21 +34,20 @@
 
         h1 {
             text-align: center;
-            margin: 0 0 10px 0;
-            font-size: 32px;
+            margin-bottom: 10px;
         }
 
         .subtitle {
             text-align: center;
             color: #666;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
         }
 
         .status {
-            text-align: center;
-            padding: 12px;
+            padding: 14px;
+            margin-bottom: 20px;
             border-radius: 8px;
-            margin-bottom: 25px;
+            text-align: center;
             background: #fff3cd;
             color: #856404;
         }
@@ -70,24 +64,18 @@
 
         .upload-section {
             text-align: center;
-            padding: 25px;
             border: 2px dashed #ccc;
+            padding: 25px;
             border-radius: 12px;
-            margin-bottom: 25px;
-        }
-
-        .upload-section input {
-            font-size: 16px;
+            margin-bottom: 20px;
         }
 
         #preview {
             display: none;
-            width: auto;
             max-width: 100%;
             max-height: 450px;
-            margin: 25px auto;
+            margin: 20px auto;
             border-radius: 12px;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
         }
 
         .button-container {
@@ -97,13 +85,12 @@
         button {
             padding: 14px 30px;
             border: none;
-            border-radius: 9px;
+            border-radius: 8px;
             background: #0077b6;
             color: white;
-            font-size: 17px;
+            font-size: 16px;
             font-weight: bold;
             cursor: pointer;
-            transition: 0.2s;
         }
 
         button:hover {
@@ -115,6 +102,12 @@
             cursor: not-allowed;
         }
 
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px;
+        }
+
         .result {
             margin-top: 30px;
             padding: 25px;
@@ -124,63 +117,36 @@
 
         .result-title {
             text-align: center;
-            font-size: 18px;
             color: #666;
-            margin-bottom: 10px;
         }
 
         .species {
             text-align: center;
             font-size: 30px;
             font-weight: bold;
-            margin: 10px 0;
+            margin: 15px 0;
         }
 
         .confidence {
             text-align: center;
-            font-size: 21px;
-            margin-bottom: 25px;
+            font-size: 20px;
         }
 
         .top3 {
+            margin-top: 25px;
             background: white;
             padding: 20px;
             border-radius: 10px;
         }
 
-        .top3 h3 {
-            margin-top: 0;
-        }
-
         .prediction-row {
             display: flex;
             justify-content: space-between;
-            gap: 20px;
             padding: 12px 0;
             border-bottom: 1px solid #ddd;
         }
 
-        .prediction-row:last-child {
-            border-bottom: none;
-        }
-
-        .prediction-name {
-            font-weight: bold;
-        }
-
-        .prediction-confidence {
-            font-weight: bold;
-        }
-
-        .details {
-            margin-top: 20px;
-            padding-top: 15px;
-            border-top: 1px solid #ddd;
-            color: #555;
-        }
-
         .error-box {
-            margin-top: 20px;
             padding: 15px;
             background: #fff0f0;
             border: 1px solid #e0aaaa;
@@ -189,41 +155,12 @@
             word-break: break-word;
         }
 
-        .loading {
-            text-align: center;
-            margin: 20px 0;
-            display: none;
-        }
-
-        .spinner {
-            display: inline-block;
-            width: 25px;
-            height: 25px;
-            border: 3px solid #ddd;
-            border-top: 3px solid #0077b6;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            vertical-align: middle;
-            margin-right: 10px;
-        }
-
-        @keyframes spin {
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-
         .model-info {
-            margin-top: 25px;
+            margin-top: 20px;
             padding: 15px;
             background: #eef6fb;
             border-radius: 10px;
             font-size: 14px;
-            color: #444;
-        }
-
-        .model-info strong {
-            color: #222;
         }
 
         .footer {
@@ -234,17 +171,8 @@
         }
 
         @media (max-width: 600px) {
-
-            body {
-                padding: 15px 10px;
-            }
-
             .container {
                 padding: 20px;
-            }
-
-            h1 {
-                font-size: 25px;
             }
 
             .species {
@@ -255,11 +183,8 @@
                 flex-direction: column;
                 gap: 5px;
             }
-
         }
-
     </style>
-
 </head>
 
 
@@ -267,9 +192,7 @@
 
 <div class="container">
 
-    <h1>
-        Coral Species Classification AI
-    </h1>
+    <h1>Coral Species Classification AI</h1>
 
     <div class="subtitle">
         Deep Learning-Based Coral Species Identification
@@ -278,11 +201,8 @@
 
     <!-- MODEL STATUS -->
 
-    <div id="status"
-         class="status">
-
+    <div id="status" class="status">
         Loading AI model...
-
     </div>
 
 
@@ -290,9 +210,7 @@
 
     <div class="upload-section">
 
-        <h3>
-            Upload Coral Image
-        </h3>
+        <h3>Upload Coral Image</h3>
 
         <input
             type="file"
@@ -306,29 +224,22 @@
 
     <img
         id="preview"
-        alt="Selected coral image">
+        alt="Coral image preview">
 
 
     <!-- LOADING -->
 
-    <div
-        id="loading"
-        class="loading">
-
-        <span class="spinner"></span>
-
+    <div id="loading" class="loading">
         Processing image...
-
     </div>
 
 
-    <!-- BUTTON -->
+    <!-- PREDICT BUTTON -->
 
     <div class="button-container">
 
         <button
             id="predictButton"
-            onclick="predict()"
             disabled>
 
             PREDICT CORAL SPECIES
@@ -340,20 +251,14 @@
 
     <!-- RESULT -->
 
-    <div
-        id="result"
-        class="result">
+    <div id="result" class="result">
 
         <div class="result-title">
-
             Prediction Result
-
         </div>
 
         <p style="text-align:center;">
-
-            Please wait for the AI model to finish loading.
-
+            Loading AI model...
         </p>
 
     </div>
@@ -361,31 +266,26 @@
 
     <!-- MODEL INFORMATION -->
 
-    <div
-        id="modelInfo"
-        class="model-info">
+    <div id="modelInfo" class="model-info">
 
-        <strong>Model Status:</strong>
+        <strong>Model:</strong>
         Loading...
 
     </div>
 
 
     <div class="footer">
-
         Coral Species Classification AI
-
     </div>
 
 </div>
-
 
 
 <script>
 
 /* =========================================================
    GLOBAL VARIABLES
-   ========================================================= */
+========================================================= */
 
 let model = null;
 
@@ -401,8 +301,29 @@ let inputChannels = 3;
 
 
 /* =========================================================
-   ELEMENTS
-   ========================================================= */
+   FILE PATHS
+========================================================= */
+
+/*
+    ALL FILES ARE IN THE MAIN FOLDER:
+
+    project/
+    |
+    |-- index.html
+    |-- model.json
+    |-- group1-shard1of1.bin
+    |-- labels.json
+
+*/
+
+const modelURL = "./model.json";
+
+const labelsURL = "./labels.json";
+
+
+/* =========================================================
+   HTML ELEMENTS
+========================================================= */
 
 const statusElement =
     document.getElementById("status");
@@ -427,8 +348,8 @@ const preview =
 
 
 /* =========================================================
-   DISPLAY STATUS
-   ========================================================= */
+   STATUS
+========================================================= */
 
 function setStatus(message, type = "") {
 
@@ -441,55 +362,178 @@ function setStatus(message, type = "") {
 
 
 /* =========================================================
+   LOAD LABELS
+========================================================= */
+
+async function loadLabels() {
+
+    const response =
+        await fetch(
+            labelsURL,
+            {
+                cache: "no-store"
+            }
+        );
+
+
+    if (!response.ok) {
+
+        throw new Error(
+            "Cannot find labels.json. HTTP Status: " +
+            response.status
+        );
+
+    }
+
+
+    const data =
+        await response.json();
+
+
+    /*
+        Supports:
+
+        [
+            "Species 1",
+            "Species 2"
+        ]
+
+        OR
+
+        {
+            "0": "Species 1",
+            "1": "Species 2"
+        }
+    */
+
+    if (Array.isArray(data)) {
+
+        labels = data;
+
+    }
+
+    else if (
+        data &&
+        typeof data === "object"
+    ) {
+
+        labels =
+            Object.keys(data)
+                .sort(
+                    (a, b) =>
+                        Number(a) - Number(b)
+                )
+                .map(
+                    key => data[key]
+                );
+
+    }
+
+    else {
+
+        throw new Error(
+            "Invalid labels.json format."
+        );
+
+    }
+
+
+    console.log(
+        "Labels loaded:",
+        labels
+    );
+
+}
+
+
+/* =========================================================
    LOAD MODEL
-   ========================================================= */
+========================================================= */
 
 async function loadModel() {
 
-    console.log("====================================");
-    console.log("CORAL AI MODEL LOADING");
-    console.log("====================================");
-
     try {
 
-        setStatus(
-            "Checking model.json...",
-            ""
+        console.log(
+            "================================"
+        );
+
+        console.log(
+            "CORAL MODEL LOADING"
+        );
+
+        console.log(
+            "================================"
         );
 
 
         /* -----------------------------------------
-           CHECK model.json
+           TensorFlow.js
         ----------------------------------------- */
 
-        const modelURL =
-            "./model.json";
-
         console.log(
-            "Model URL:",
-            modelURL
+            "TensorFlow.js:",
+            tf.version.tfjs
         );
 
 
-        const modelCheck =
-            await fetch(modelURL, {
-                cache: "no-store"
-            });
+        /* -----------------------------------------
+           CHECK MODEL.JSON
+        ----------------------------------------- */
 
-
-        console.log(
-            "model.json HTTP status:",
-            modelCheck.status
+        setStatus(
+            "Checking model.json..."
         );
 
 
-        if (!modelCheck.ok) {
+        const response =
+            await fetch(
+                modelURL,
+                {
+                    cache: "no-store"
+                }
+            );
+
+
+        if (!response.ok) {
 
             throw new Error(
-                "model.json could not be found. " +
-                "HTTP status: " +
-                modelCheck.status +
-                ". Check that model.json is inside the model folder."
+                "model.json cannot be found. " +
+                "HTTP Status: " +
+                response.status
+            );
+
+        }
+
+
+        const modelJSON =
+            await response.json();
+
+
+        console.log(
+            "Model format:",
+            modelJSON.format
+        );
+
+
+        /*
+            Your model.json says:
+
+            "format": "layers-model"
+
+            Therefore:
+
+            tf.loadLayersModel()
+        */
+
+        if (
+            modelJSON.format !==
+            "layers-model"
+        ) {
+
+            throw new Error(
+                "Expected a LayersModel but model.json format is: " +
+                modelJSON.format
             );
 
         }
@@ -500,8 +544,7 @@ async function loadModel() {
         ----------------------------------------- */
 
         setStatus(
-            "Loading TensorFlow.js model...",
-            ""
+            "Loading AI model..."
         );
 
 
@@ -517,7 +560,7 @@ async function loadModel() {
 
 
         /* -----------------------------------------
-           GET MODEL INPUT SHAPE
+           MODEL INPUT
         ----------------------------------------- */
 
         const inputShape =
@@ -525,12 +568,13 @@ async function loadModel() {
 
 
         console.log(
-            "Model input shape:",
+            "Input shape:",
             inputShape
         );
 
 
         if (
+            inputShape &&
             inputShape.length === 4
         ) {
 
@@ -547,7 +591,7 @@ async function loadModel() {
 
 
         /* -----------------------------------------
-           GET MODEL OUTPUT SHAPE
+           MODEL OUTPUT
         ----------------------------------------- */
 
         const outputShape =
@@ -555,7 +599,7 @@ async function loadModel() {
 
 
         console.log(
-            "Model output shape:",
+            "Output shape:",
             outputShape
         );
 
@@ -567,7 +611,7 @@ async function loadModel() {
 
 
         console.log(
-            "Number of output classes:",
+            "Number of classes:",
             numberOfClasses
         );
 
@@ -577,46 +621,11 @@ async function loadModel() {
         ----------------------------------------- */
 
         setStatus(
-            "Loading class labels...",
-            ""
+            "Loading coral species labels..."
         );
 
 
-        const labelsURL =
-            "./labels.json";
-
-
-        const labelsResponse =
-            await fetch(labelsURL, {
-                cache: "no-store"
-            });
-
-
-        console.log(
-            "labels.json HTTP status:",
-            labelsResponse.status
-        );
-
-
-        if (!labelsResponse.ok) {
-
-            throw new Error(
-                "labels.json could not be found. " +
-                "HTTP status: " +
-                labelsResponse.status
-            );
-
-        }
-
-
-        labels =
-            await labelsResponse.json();
-
-
-        console.log(
-            "Labels:",
-            labels
-        );
+        await loadLabels();
 
 
         /* -----------------------------------------
@@ -624,15 +633,22 @@ async function loadModel() {
         ----------------------------------------- */
 
         if (
-            labels.length !== numberOfClasses
+            labels.length !==
+            numberOfClasses
         ) {
 
             console.warn(
-                "WARNING: Number of labels (" +
-                labels.length +
-                ") does not match model output classes (" +
-                numberOfClasses +
-                ")."
+                "WARNING: labels count does not match model classes."
+            );
+
+            console.warn(
+                "Labels:",
+                labels.length
+            );
+
+            console.warn(
+                "Classes:",
+                numberOfClasses
             );
 
         }
@@ -645,25 +661,33 @@ async function loadModel() {
         modelInfoElement.innerHTML = `
 
             <strong>Model:</strong>
-            TensorFlow.js CNN
+            Optimized Coral CNN
+
+            <br><br>
+
+            <strong>Model Type:</strong>
+            TensorFlow.js LayersModel
+
             <br><br>
 
             <strong>Input Size:</strong>
             ${inputWidth} × ${inputHeight} × ${inputChannels}
+
             <br><br>
 
             <strong>Output Classes:</strong>
             ${numberOfClasses}
+
             <br><br>
 
-            <strong>Labels Loaded:</strong>
+            <strong>Labels:</strong>
             ${labels.length}
 
         `;
 
 
         /* -----------------------------------------
-           MODEL READY
+           READY
         ----------------------------------------- */
 
         modelLoaded = true;
@@ -684,27 +708,23 @@ async function loadModel() {
             </div>
 
             <p style="text-align:center;">
-
-                The AI model is ready.
-                Please upload a coral image.
-
+                Upload a coral image to begin classification.
             </p>
 
         `;
 
 
         console.log(
-            "===================================="
+            "================================"
         );
 
         console.log(
-            "MODEL READY FOR PREDICTION"
+            "MODEL READY"
         );
 
         console.log(
-            "===================================="
+            "================================"
         );
-
 
     }
 
@@ -716,31 +736,19 @@ async function loadModel() {
 
 
         console.error(
-            "===================================="
-        );
-
-        console.error(
-            "MODEL LOADING ERROR"
+            "MODEL LOADING ERROR:"
         );
 
         console.error(error);
 
-        console.error(
-            "===================================="
-        );
-
 
         setStatus(
-            "✗ Unable to load AI model",
+            "✗ AI Model Failed to Load",
             "error"
         );
 
 
         resultElement.innerHTML = `
-
-            <div class="result-title">
-                Prediction Result
-            </div>
 
             <div class="error-box">
 
@@ -750,39 +758,41 @@ async function loadModel() {
 
                 <br><br>
 
-                ${escapeHTML(error.message)}
+                ${escapeHTML(
+                    error.message
+                )}
 
                 <br><br>
 
                 <strong>
-                    Check:
+                    Check your files:
                 </strong>
 
                 <ul>
 
                     <li>
-                        model/model.json exists
+                        index.html
                     </li>
 
                     <li>
-                        All .bin files are inside
-                        the model folder
+                        model.json
                     </li>
 
                     <li>
-                        .bin filenames match
-                        the paths in model.json
+                        group1-shard1of1.bin
                     </li>
 
                     <li>
-                        labels.json exists
+                        labels.json
                     </li>
 
                 </ul>
 
-                Open your browser's
-                <strong>F12 → Console</strong>
-                for the complete error.
+                <p>
+                    Open
+                    <strong>F12 → Console</strong>
+                    to see the complete error.
+                </p>
 
             </div>
 
@@ -803,7 +813,9 @@ async function loadModel() {
                 Error:
             </strong>
 
-            ${escapeHTML(error.message)}
+            ${escapeHTML(
+                error.message
+            )}
 
         `;
 
@@ -814,7 +826,7 @@ async function loadModel() {
 
 /* =========================================================
    IMAGE PREVIEW
-   ========================================================= */
+========================================================= */
 
 imageInput.addEventListener(
     "change",
@@ -839,7 +851,7 @@ imageInput.addEventListener(
         ) {
 
             alert(
-                "Please select an image file."
+                "Please select an image."
             );
 
             imageInput.value = "";
@@ -853,6 +865,10 @@ imageInput.addEventListener(
             URL.createObjectURL(file);
 
 
+        preview.src =
+            imageURL;
+
+
         preview.onload =
             function() {
 
@@ -863,10 +879,6 @@ imageInput.addEventListener(
             };
 
 
-        preview.src =
-            imageURL;
-
-
         preview.style.display =
             "block";
 
@@ -874,19 +886,15 @@ imageInput.addEventListener(
         resultElement.innerHTML = `
 
             <div class="result-title">
-
                 Image Ready
-
             </div>
 
             <p style="text-align:center;">
-
                 Click
                 <strong>
                     PREDICT CORAL SPECIES
                 </strong>
                 to classify the image.
-
             </p>
 
         `;
@@ -896,30 +904,34 @@ imageInput.addEventListener(
 
 
 /* =========================================================
+   PREDICT BUTTON
+========================================================= */
+
+predictButton.addEventListener(
+    "click",
+    predict
+);
+
+
+/* =========================================================
    PREDICT
-   ========================================================= */
+========================================================= */
 
 async function predict() {
 
-
-    /* -----------------------------------------
-       CHECK MODEL
-    ----------------------------------------- */
-
-    if (!modelLoaded || !model) {
+    if (
+        !modelLoaded ||
+        !model
+    ) {
 
         alert(
-            "The AI model is not ready yet."
+            "AI model is not ready."
         );
 
         return;
 
     }
 
-
-    /* -----------------------------------------
-       CHECK IMAGE
-    ----------------------------------------- */
 
     const file =
         imageInput.files[0];
@@ -928,7 +940,7 @@ async function predict() {
     if (!file) {
 
         alert(
-            "Please select a coral image first."
+            "Please upload a coral image first."
         );
 
         return;
@@ -936,18 +948,11 @@ async function predict() {
     }
 
 
-    /* -----------------------------------------
-       SHOW LOADING
-    ----------------------------------------- */
-
-    predictButton.disabled = true;
+    predictButton.disabled =
+        true;
 
     loadingElement.style.display =
         "block";
-
-
-    const startTime =
-        performance.now();
 
 
     let tensor = null;
@@ -955,11 +960,14 @@ async function predict() {
     let prediction = null;
 
 
+    const startTime =
+        performance.now();
+
+
     try {
 
-
         /* -----------------------------------------
-           CREATE IMAGE TENSOR
+           IMAGE → TENSOR
         ----------------------------------------- */
 
         tensor =
@@ -969,7 +977,7 @@ async function predict() {
 
 
         console.log(
-            "Original image tensor:",
+            "Original tensor:",
             tensor.shape
         );
 
@@ -989,7 +997,7 @@ async function predict() {
 
 
         /* -----------------------------------------
-           CONVERT TO FLOAT
+           FLOAT
         ----------------------------------------- */
 
         tensor =
@@ -997,23 +1005,21 @@ async function predict() {
 
 
         /*
-         * IMPORTANT:
-         *
-         * This assumes the model expects
-         * pixel values between 0 and 1.
-         *
-         * If your model already contains
-         * a Rescaling(1./255) layer,
-         * this normalization should be removed.
-         */
+            IMPORTANT:
 
+            DO NOT USE:
 
-        tensor =
-            tensor.div(255.0);
+            tensor.div(255)
+
+            because your model already has:
+
+            Rescaling(1 / 255)
+
+        */
 
 
         /* -----------------------------------------
-           ADD BATCH DIMENSION
+           BATCH DIMENSION
         ----------------------------------------- */
 
         tensor =
@@ -1021,27 +1027,29 @@ async function predict() {
 
 
         console.log(
-            "Input tensor:",
+            "Final input tensor:",
             tensor.shape
         );
 
 
         /* -----------------------------------------
-           MODEL PREDICTION
+           PREDICT
         ----------------------------------------- */
 
         prediction =
-            model.predict(tensor);
+            model.predict(
+                tensor
+            );
 
 
         console.log(
-            "Prediction tensor:",
-            prediction.shape
+            "Prediction:",
+            prediction
         );
 
 
         /* -----------------------------------------
-           GET PREDICTIONS
+           GET PROBABILITIES
         ----------------------------------------- */
 
         const probabilities =
@@ -1049,13 +1057,13 @@ async function predict() {
 
 
         console.log(
-            "Prediction probabilities:",
+            "Probabilities:",
             probabilities
         );
 
 
         /* -----------------------------------------
-           FIND TOP PREDICTION
+           FIND TOP CLASS
         ----------------------------------------- */
 
         let maxIndex = 0;
@@ -1079,45 +1087,43 @@ async function predict() {
         }
 
 
-        /* -----------------------------------------
-           LABEL
-        ----------------------------------------- */
-
         const predictedSpecies =
             labels[maxIndex] ||
-            "Unknown Class";
+            "Unknown Species";
 
 
         const confidence =
-            probabilities[maxIndex] * 100;
+            probabilities[maxIndex] *
+            100;
 
 
         /* -----------------------------------------
            TOP 3
         ----------------------------------------- */
 
-        const indices =
+        const topIndices =
             Array.from(
                 probabilities.keys()
             )
             .sort(
-                function(a, b) {
-
-                    return (
-                        probabilities[b] -
-                        probabilities[a]
-                    );
-
-                }
+                (a, b) =>
+                    probabilities[b] -
+                    probabilities[a]
             )
-            .slice(0, 3);
+            .slice(
+                0,
+                Math.min(
+                    3,
+                    probabilities.length
+                )
+            );
 
 
         let top3HTML = "";
 
 
-        indices.forEach(
-            function(index, position) {
+        topIndices.forEach(
+            (index, position) => {
 
                 const percentage =
                     probabilities[index] *
@@ -1128,23 +1134,21 @@ async function predict() {
 
                     <div class="prediction-row">
 
-                        <div class="prediction-name">
+                        <span>
+                            <strong>
+                                ${position + 1}.
+                            </strong>
 
-                            ${position + 1}.
                             ${escapeHTML(
-                                String(
-                                    labels[index] ||
-                                    "Unknown"
-                                )
+                                labels[index] ||
+                                "Unknown"
                             )}
 
-                        </div>
+                        </span>
 
-                        <div class="prediction-confidence">
-
+                        <strong>
                             ${percentage.toFixed(2)}%
-
-                        </div>
+                        </strong>
 
                     </div>
 
@@ -1155,7 +1159,7 @@ async function predict() {
 
 
         /* -----------------------------------------
-           INFERENCE TIME
+           TIME
         ----------------------------------------- */
 
         const inferenceTime =
@@ -1164,33 +1168,31 @@ async function predict() {
 
 
         /* -----------------------------------------
-           DISPLAY RESULT
+           DISPLAY
         ----------------------------------------- */
 
         resultElement.innerHTML = `
 
             <div class="result-title">
-
                 Predicted Coral Species
-
             </div>
+
 
             <div class="species">
 
                 ${escapeHTML(
-                    String(predictedSpecies)
+                    predictedSpecies
                 )}
 
             </div>
+
 
             <div class="confidence">
 
                 Confidence:
 
                 <strong>
-
                     ${confidence.toFixed(2)}%
-
                 </strong>
 
             </div>
@@ -1205,7 +1207,10 @@ async function predict() {
                 ${top3HTML}
 
 
-                <div class="details">
+                <hr>
+
+
+                <p>
 
                     <strong>
                         Inference Time:
@@ -1214,10 +1219,13 @@ async function predict() {
                     ${inferenceTime.toFixed(2)}
                     ms
 
-                    <br><br>
+                </p>
+
+
+                <p>
 
                     <strong>
-                        Input Size:
+                        Input:
                     </strong>
 
                     ${inputWidth}
@@ -1226,31 +1234,47 @@ async function predict() {
                     ×
                     ${inputChannels}
 
-                    <br><br>
+                </p>
+
+
+                <p>
 
                     <strong>
-                        Number of Classes:
+                        Classes:
                     </strong>
 
                     ${probabilities.length}
 
-                </div>
+                </p>
 
             </div>
 
         `;
 
 
+        console.log(
+            "Predicted:",
+            predictedSpecies
+        );
+
+        console.log(
+            "Confidence:",
+            confidence.toFixed(2) + "%"
+        );
+
+        console.log(
+            "Inference:",
+            inferenceTime.toFixed(2) + " ms"
+        );
+
     }
 
     catch (error) {
 
-
         console.error(
-            "PREDICTION ERROR:"
+            "PREDICTION ERROR:",
+            error
         );
-
-        console.error(error);
 
 
         resultElement.innerHTML = `
@@ -1267,27 +1291,13 @@ async function predict() {
                     error.message
                 )}
 
-                <br><br>
-
-                Open
-                <strong>
-                    F12 → Console
-                </strong>
-                for more information.
-
             </div>
 
         `;
 
     }
 
-
     finally {
-
-
-        /* -----------------------------------------
-           CLEANUP
-        ----------------------------------------- */
 
         if (tensor) {
 
@@ -1320,24 +1330,39 @@ async function predict() {
 
 
 /* =========================================================
-   HTML ESCAPE
-   ========================================================= */
+   ESCAPE HTML
+========================================================= */
 
 function escapeHTML(value) {
 
-    return value
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+    return String(value)
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+        .replace(
+            /</g,
+            "&lt;"
+        )
+        .replace(
+            />/g,
+            "&gt;"
+        )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /'/g,
+            "&#039;"
+        );
 
 }
 
 
 /* =========================================================
-   START MODEL LOADING
-   ========================================================= */
+   START
+========================================================= */
 
 loadModel();
 
