@@ -20,11 +20,13 @@
         content="AI-powered Coral Species Classification System"
     >
 
-    <title>Coral Species Classification AI</title>
+    <title>
+        Coral Species Classification AI
+    </title>
 
 
     <!-- =========================================================
-         FULL TENSORFLOW.JS
+         TENSORFLOW.JS
          ========================================================= -->
 
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
@@ -450,6 +452,37 @@
 
 
         /* =====================================================
+           DEBUG INFORMATION
+           ===================================================== */
+
+        #debug {
+
+            display: none;
+
+            margin-top: 20px;
+
+            padding: 15px;
+
+            background: #111;
+
+            color: #00ff00;
+
+            border-radius: 10px;
+
+            text-align: left;
+
+            font-family: monospace;
+
+            font-size: 12px;
+
+            white-space: pre-wrap;
+
+            overflow-x: auto;
+
+        }
+
+
+        /* =====================================================
            FOOTER
            ===================================================== */
 
@@ -527,24 +560,28 @@
 
 
     <div class="subtitle">
+
         AI-powered coral species identification
+
     </div>
 
 
     <!-- =====================================================
-         STATUS
+         MODEL STATUS
          ===================================================== -->
 
     <div
         id="status"
         class="loading"
     >
+
         Loading AI model...
+
     </div>
 
 
     <!-- =====================================================
-         IMAGE UPLOAD
+         UPLOAD
          ===================================================== -->
 
     <div class="upload-box">
@@ -573,14 +610,16 @@
 
 
     <!-- =====================================================
-         PREDICT
+         PREDICT BUTTON
          ===================================================== -->
 
     <button
         id="predictButton"
         disabled
     >
+
         PREDICT CORAL SPECIES
+
     </button>
 
 
@@ -589,12 +628,14 @@
          ===================================================== -->
 
     <div id="result">
+
         Upload a coral image to begin.
+
     </div>
 
 
     <!-- =====================================================
-         PROBABILITY RESULTS
+         PROBABILITY LIST
          ===================================================== -->
 
     <div id="probabilityList"></div>
@@ -622,6 +663,11 @@
         </div>
 
         <div>
+            <strong>Data Type:</strong>
+            Float32
+        </div>
+
+        <div>
             <strong>Inference:</strong>
             Client-side
         </div>
@@ -634,8 +680,17 @@
     </div>
 
 
+    <!-- =====================================================
+         DEBUG
+         ===================================================== -->
+
+    <div id="debug"></div>
+
+
     <div class="footer">
+
         Coral Species Classification System
+
     </div>
 
 
@@ -644,6 +699,7 @@
 
 
 <script>
+
 
 /* =============================================================
    CONFIGURATION
@@ -659,7 +715,7 @@ const MODEL_URL =
 
 
 /*
-    Class labels
+    Labels
 */
 
 const LABELS_URL =
@@ -667,9 +723,23 @@ const LABELS_URL =
 
 
 /*
-    Confidence threshold
+    CNN input dimensions
+*/
 
-    0.50 = 50%
+const INPUT_HEIGHT =
+    256;
+
+
+const INPUT_WIDTH =
+    256;
+
+
+const CHANNELS =
+    3;
+
+
+/*
+    Confidence threshold
 */
 
 const CONFIDENCE_THRESHOLD =
@@ -677,23 +747,11 @@ const CONFIDENCE_THRESHOLD =
 
 
 /*
-    Number of top predictions
+    Number of top results
 */
 
 const TOP_RESULTS =
     5;
-
-
-/*
-    Default CNN input size
-*/
-
-const DEFAULT_HEIGHT =
-    256;
-
-
-const DEFAULT_WIDTH =
-    256;
 
 
 
@@ -707,16 +765,10 @@ let labels = [];
 
 let modelReady = false;
 
-let inputHeight =
-    DEFAULT_HEIGHT;
-
-let inputWidth =
-    DEFAULT_WIDTH;
-
 
 
 /* =============================================================
-   HTML ELEMENTS
+   ELEMENTS
    ============================================================= */
 
 const statusElement =
@@ -755,6 +807,39 @@ const probabilityList =
     );
 
 
+const debugElement =
+    document.getElementById(
+        "debug"
+    );
+
+
+
+/* =============================================================
+   DEBUG FUNCTION
+   ============================================================= */
+
+function debug(
+    message
+) {
+
+    console.log(
+        message
+    );
+
+
+    if (
+        debugElement
+    ) {
+
+        debugElement.textContent +=
+            message +
+            "\n";
+
+    }
+
+}
+
+
 
 /* =============================================================
    STATUS
@@ -776,14 +861,52 @@ function setStatus(
 
 
 /* =============================================================
+   ESCAPE HTML
+   ============================================================= */
+
+function escapeHTML(
+    value
+) {
+
+    return String(value)
+
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+
+        .replace(
+            /</g,
+            "&lt;"
+        )
+
+        .replace(
+            />/g,
+            "&gt;"
+        )
+
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+
+        .replace(
+            /'/g,
+            "&#039;"
+        );
+
+}
+
+
+
+/* =============================================================
    LOAD LABELS
    ============================================================= */
 
 async function loadLabels() {
 
-    console.log(
-        "Loading labels:",
-        LABELS_URL
+    debug(
+        "Loading labels.json..."
     );
 
 
@@ -796,11 +919,13 @@ async function loadLabels() {
         );
 
 
-    if (!response.ok) {
+    if (
+        !response.ok
+    ) {
 
         throw new Error(
-            "Unable to load labels.json. " +
-            "HTTP status: " +
+            "Could not load labels.json. " +
+            "HTTP " +
             response.status
         );
 
@@ -812,7 +937,7 @@ async function loadLabels() {
 
 
     /*
-        Format:
+        Format 1:
 
         [
             "ACER",
@@ -825,13 +950,14 @@ async function loadLabels() {
         Array.isArray(data)
     ) {
 
-        labels = data;
+        labels =
+            data;
 
     }
 
 
     /*
-        Format:
+        Format 2:
 
         {
             "labels": [
@@ -855,7 +981,7 @@ async function loadLabels() {
 
 
     /*
-        Format:
+        Format 3:
 
         {
             "0": "ACER",
@@ -865,7 +991,8 @@ async function loadLabels() {
 
     else if (
         data &&
-        typeof data === "object"
+        typeof data ===
+        "object"
     ) {
 
         labels =
@@ -910,136 +1037,15 @@ async function loadLabels() {
     }
 
 
-    console.log(
-        "Labels loaded:",
-        labels
+    debug(
+        "Labels loaded: " +
+        labels.length
     );
 
-}
 
-
-
-/* =============================================================
-   DETERMINE INPUT SIZE
-   ============================================================= */
-
-function determineInputSize() {
-
-    /*
-        Start with your known
-        256 × 256 input.
-    */
-
-    inputHeight =
-        DEFAULT_HEIGHT;
-
-    inputWidth =
-        DEFAULT_WIDTH;
-
-
-    /*
-        Some TFLite versions expose
-        inputShape.
-    */
-
-    if (
-        model &&
-        model.inputShape &&
-        model.inputShape.length >= 4
-    ) {
-
-        const shape =
-            model.inputShape;
-
-
-        const h =
-            shape[
-                shape.length - 3
-            ];
-
-
-        const w =
-            shape[
-                shape.length - 2
-            ];
-
-
-        if (
-            Number.isFinite(h) &&
-            h > 0
-        ) {
-
-            inputHeight =
-                h;
-
-        }
-
-
-        if (
-            Number.isFinite(w) &&
-            w > 0
-        ) {
-
-            inputWidth =
-                w;
-
-        }
-
-    }
-
-
-    /*
-        Alternative API.
-    */
-
-    else if (
-        model &&
-        model.inputs &&
-        model.inputs[0] &&
-        model.inputs[0].shape
-    ) {
-
-        const shape =
-            model.inputs[0].shape;
-
-
-        if (
-            shape.length >= 4
-        ) {
-
-            if (
-                Number.isFinite(
-                    shape[1]
-                )
-            ) {
-
-                inputHeight =
-                    shape[1];
-
-            }
-
-
-            if (
-                Number.isFinite(
-                    shape[2]
-                )
-            ) {
-
-                inputWidth =
-                    shape[2];
-
-            }
-
-        }
-
-    }
-
-
-    console.log(
-        "Input size:",
-        inputHeight +
-        " × " +
-        inputWidth
+    debug(
+        "Classes: " +
+        labels.join(", ")
     );
 
 }
@@ -1054,6 +1060,10 @@ async function loadModel() {
 
     try {
 
+        debugElement.textContent =
+            "";
+
+
         setStatus(
             "Initializing TensorFlow.js...",
             "loading"
@@ -1061,7 +1071,7 @@ async function loadModel() {
 
 
         /*
-            Check TensorFlow.js.
+            Check TensorFlow.js
         */
 
         if (
@@ -1070,20 +1080,25 @@ async function loadModel() {
         ) {
 
             throw new Error(
-                "TensorFlow.js did not load."
+                "TensorFlow.js failed to load."
             );
 
         }
 
 
-        console.log(
-            "TensorFlow.js version:",
+        debug(
+            "TensorFlow.js loaded."
+        );
+
+
+        debug(
+            "TensorFlow.js version: " +
             tf.version.tfjs
         );
 
 
         /*
-            Use CPU backend.
+            CPU backend
         */
 
         await tf.setBackend(
@@ -1094,20 +1109,20 @@ async function loadModel() {
         await tf.ready();
 
 
-        console.log(
-            "TensorFlow.js backend:",
+        debug(
+            "Backend: " +
             tf.getBackend()
         );
 
 
         setStatus(
-            "Loading TensorFlow Lite model...",
+            "Loading AI model...",
             "loading"
         );
 
 
         /*
-            Check TFLite library.
+            Check TFLite
         */
 
         if (
@@ -1116,7 +1131,7 @@ async function loadModel() {
         ) {
 
             throw new Error(
-                "TensorFlow Lite library did not load."
+                "TensorFlow Lite library failed to load."
             );
 
         }
@@ -1129,20 +1144,20 @@ async function loadModel() {
         ) {
 
             throw new Error(
-                "tflite.loadTFLiteModel() is unavailable."
+                "TFLite model loader is unavailable."
             );
 
         }
 
 
-        console.log(
-            "Loading:",
+        debug(
+            "Loading model: " +
             MODEL_URL
         );
 
 
         /*
-            LOAD TFLITE MODEL
+            LOAD MODEL
         */
 
         model =
@@ -1151,21 +1166,19 @@ async function loadModel() {
             );
 
 
+        debug(
+            "TFLite model loaded successfully."
+        );
+
+
         console.log(
-            "TFLite model loaded successfully.",
+            "TFLite model:",
             model
         );
 
 
         /*
-            Determine input.
-        */
-
-        determineInputSize();
-
-
-        /*
-            Load labels.
+            Load labels
         */
 
         setStatus(
@@ -1178,20 +1191,11 @@ async function loadModel() {
 
 
         /*
-            Verify labels.
+            Model ready
         */
 
-        console.log(
-            "Number of classes:",
-            labels.length
-        );
-
-
-        /*
-            Ready.
-        */
-
-        modelReady = true;
+        modelReady =
+            true;
 
 
         setStatus(
@@ -1208,45 +1212,10 @@ async function loadModel() {
             "Upload a coral image to begin.";
 
 
-        console.log(
-            "======================================"
+        debug(
+            "MODEL READY"
         );
 
-        console.log(
-            "CORAL CLASSIFIER READY"
-        );
-
-        console.log(
-            "TensorFlow.js:",
-            tf.version.tfjs
-        );
-
-        console.log(
-            "Backend:",
-            tf.getBackend()
-        );
-
-        console.log(
-            "Model:",
-            MODEL_URL
-        );
-
-        console.log(
-            "Input:",
-            inputHeight +
-            " × " +
-            inputWidth +
-            " × 3"
-        );
-
-        console.log(
-            "Classes:",
-            labels.length
-        );
-
-        console.log(
-            "======================================"
-        );
 
     }
 
@@ -1257,7 +1226,7 @@ async function loadModel() {
 
 
         console.error(
-            "MODEL LOADING ERROR:",
+            "MODEL ERROR:",
             error
         );
 
@@ -1311,7 +1280,9 @@ imageInput.addEventListener(
             this.files[0];
 
 
-        if (!file) {
+        if (
+            !file
+        ) {
 
             preview.style.display =
                 "none";
@@ -1328,10 +1299,11 @@ imageInput.addEventListener(
         ) {
 
             alert(
-                "Please select an image."
+                "Please select an image file."
             );
 
-            this.value = "";
+            this.value =
+                "";
 
             return;
 
@@ -1339,7 +1311,7 @@ imageInput.addEventListener(
 
 
         /*
-            Release previous object URL.
+            Release previous URL
         */
 
         if (
@@ -1384,118 +1356,18 @@ imageInput.addEventListener(
 
 
 /* =============================================================
-   PREDICT BUTTON
-   ============================================================= */
-
-predictButton.addEventListener(
-    "click",
-    async function() {
-
-        if (!modelReady) {
-
-            alert(
-                "AI model is not ready."
-            );
-
-            return;
-
-        }
-
-
-        const file =
-            imageInput.files[0];
-
-
-        if (!file) {
-
-            alert(
-                "Please upload a coral image first."
-            );
-
-            return;
-
-        }
-
-
-        predictButton.disabled =
-            true;
-
-
-        result.innerHTML =
-            "Analyzing coral image...";
-
-
-        probabilityList.innerHTML =
-            "";
-
-
-        try {
-
-            const image =
-                await loadImage(
-                    file
-                );
-
-
-            const probabilities =
-                await predictImage(
-                    image
-                );
-
-
-            displayResults(
-                probabilities
-            );
-
-        }
-
-        catch (error) {
-
-            console.error(
-                "PREDICTION ERROR:",
-                error
-            );
-
-
-            result.innerHTML = `
-
-                <div class="unknown">
-
-                    Prediction Error
-
-                </div>
-
-                <br>
-
-                ${escapeHTML(
-                    error.message ||
-                    String(error)
-                )}
-
-            `;
-
-        }
-
-        finally {
-
-            predictButton.disabled =
-                false;
-
-        }
-
-    }
-);
-
-
-
-/* =============================================================
    LOAD IMAGE
    ============================================================= */
 
-function loadImage(file) {
+function loadImage(
+    file
+) {
 
     return new Promise(
-        function(resolve, reject) {
+        function(
+            resolve,
+            reject
+        ) {
 
             const image =
                 new Image();
@@ -1532,7 +1404,7 @@ function loadImage(file) {
 
                     reject(
                         new Error(
-                            "Unable to read the image."
+                            "Unable to load the selected image."
                         )
                     );
 
@@ -1550,18 +1422,309 @@ function loadImage(file) {
 
 
 /* =============================================================
+   CREATE MODEL INPUT
+   ============================================================= */
+
+/*
+    IMPORTANT:
+
+    This function intentionally DOES NOT use:
+
+        tensor.toFloat()
+        tensor.expandDims()
+        tf.browser.fromPixels()
+        tf.image.resizeBilinear()
+
+    Instead:
+
+        Image
+          ↓
+        Canvas
+          ↓
+        ImageData
+          ↓
+        Float32Array
+          ↓
+        tf.tensor4d()
+
+    Final shape:
+
+        [1, 256, 256, 3]
+*/
+
+function createModelInput(
+    image
+) {
+
+    /* ---------------------------------------------------------
+       Canvas
+       --------------------------------------------------------- */
+
+    const canvas =
+        document.createElement(
+            "canvas"
+        );
+
+
+    canvas.width =
+        INPUT_WIDTH;
+
+
+    canvas.height =
+        INPUT_HEIGHT;
+
+
+    const context =
+        canvas.getContext(
+            "2d",
+            {
+                willReadFrequently:
+                    true
+            }
+        );
+
+
+    if (
+        !context
+    ) {
+
+        throw new Error(
+            "Unable to create Canvas 2D context."
+        );
+
+    }
+
+
+    /* ---------------------------------------------------------
+       Draw image at model size
+       --------------------------------------------------------- */
+
+    context.drawImage(
+        image,
+        0,
+        0,
+        INPUT_WIDTH,
+        INPUT_HEIGHT
+    );
+
+
+    /* ---------------------------------------------------------
+       Get RGB pixels
+       --------------------------------------------------------- */
+
+    const imageData =
+        context.getImageData(
+            0,
+            0,
+            INPUT_WIDTH,
+            INPUT_HEIGHT
+        );
+
+
+    const pixels =
+        imageData.data;
+
+
+    /*
+        Canvas ImageData format:
+
+        R
+        G
+        B
+        A
+
+        We need:
+
+        R
+        G
+        B
+
+        Alpha is removed.
+    */
+
+
+    const floatData =
+        new Float32Array(
+            INPUT_WIDTH *
+            INPUT_HEIGHT *
+            CHANNELS
+        );
+
+
+    let destinationIndex =
+        0;
+
+
+    for (
+        let sourceIndex = 0;
+        sourceIndex < pixels.length;
+        sourceIndex += 4
+    ) {
+
+        /*
+            Red
+        */
+
+        floatData[
+            destinationIndex++
+        ] =
+            pixels[
+                sourceIndex
+            ];
+
+
+        /*
+            Green
+        */
+
+        floatData[
+            destinationIndex++
+        ] =
+            pixels[
+                sourceIndex + 1
+            ];
+
+
+        /*
+            Blue
+        */
+
+        floatData[
+            destinationIndex++
+        ] =
+            pixels[
+                sourceIndex + 2
+            ];
+
+    }
+
+
+    /* ---------------------------------------------------------
+       Create Tensor directly
+       
+       NO:
+           toFloat()
+           expandDims()
+       
+       --------------------------------------------------------- */
+
+    const inputTensor =
+        tf.tensor4d(
+            floatData,
+            [
+                1,
+                INPUT_HEIGHT,
+                INPUT_WIDTH,
+                CHANNELS
+            ],
+            "float32"
+        );
+
+
+    debug(
+        "Input tensor created."
+    );
+
+
+    debug(
+        "Shape: [" +
+        inputTensor.shape.join(", ") +
+        "]"
+    );
+
+
+    debug(
+        "Dtype: " +
+        inputTensor.dtype
+    );
+
+
+    return inputTensor;
+
+}
+
+
+
+/* =============================================================
+   EXTRACT MODEL OUTPUT
+   ============================================================= */
+
+async function extractPrediction(
+    prediction
+) {
+
+    /*
+        Tensor output
+    */
+
+    if (
+        prediction &&
+        typeof prediction.data ===
+        "function"
+    ) {
+
+        return Array.from(
+            await prediction.data()
+        );
+
+    }
+
+
+    /*
+        Array output
+    */
+
+    if (
+        Array.isArray(
+            prediction
+        )
+    ) {
+
+        /*
+            First output is Tensor
+        */
+
+        if (
+            prediction.length > 0 &&
+            prediction[0] &&
+            typeof
+            prediction[0].data ===
+            "function"
+        ) {
+
+            return Array.from(
+                await prediction[0].data()
+            );
+
+        }
+
+
+        /*
+            Already numeric array
+        */
+
+        return Array.from(
+            prediction
+        );
+
+    }
+
+
+    throw new Error(
+        "The TFLite model returned an unsupported output format."
+    );
+
+}
+
+
+
+/* =============================================================
    PREDICT IMAGE
    ============================================================= */
 
 async function predictImage(
     image
 ) {
-
-    let originalTensor =
-        null;
-
-    let resizedTensor =
-        null;
 
     let inputTensor =
         null;
@@ -1572,144 +1735,61 @@ async function predictImage(
 
     try {
 
-        console.log(
-            "======================================"
-        );
-
-        console.log(
-            "STARTING CORAL PREDICTION"
-        );
-
-        console.log(
-            "======================================"
+        debug(
+            "Starting image preprocessing..."
         );
 
 
         /* =====================================================
-           STEP 1
-           IMAGE → TENSOR
+           CREATE INPUT
            ===================================================== */
 
-        originalTensor =
-            tf.browser.fromPixels(
+        inputTensor =
+            createModelInput(
                 image
             );
 
 
-        console.log(
-            "Original image tensor:",
-            originalTensor.shape
-        );
-
-
-        console.log(
-            "Original dtype:",
-            originalTensor.dtype
-        );
-
-
-        /* =====================================================
-           STEP 2
-           RESIZE
-           ===================================================== */
-
-        resizedTensor =
-            tf.image.resizeBilinear(
-                originalTensor,
-                [
-                    inputHeight,
-                    inputWidth
-                ]
-            );
-
-
-        console.log(
-            "Resized tensor:",
-            resizedTensor.shape
-        );
-
-
-        /* =====================================================
-           STEP 3
-           FLOAT32
-           
-           IMPORTANT:
-           
-           Full TensorFlow.js is loaded above,
-           so toFloat() is available.
-           ===================================================== */
-
-        inputTensor =
-            resizedTensor.toFloat();
-
-
-        console.log(
-            "Float tensor:",
-            inputTensor.shape
-        );
-
-
-        console.log(
-            "Float dtype:",
-            inputTensor.dtype
-        );
-
-
-        /* =====================================================
-           STEP 4
-           NORMALIZATION
-           
-           IMPORTANT:
-           
-           We are NOT dividing by 255 here.
-
-           This assumes the trained CNN/TFLite model
-           handles its own rescaling.
-
-           If your model does NOT have internal
-           Rescaling(1./255), we can change this later.
-           ===================================================== */
-
-
-        /* =====================================================
-           STEP 5
-           ADD BATCH DIMENSION
-           ===================================================== */
-
-        inputTensor =
-            inputTensor.expandDims(
-                0
-            );
-
-
-        console.log(
-            "Final input tensor:",
-            inputTensor.shape
-        );
-
-
-        console.log(
-            "Final input dtype:",
-            inputTensor.dtype
-        );
-
-
         /*
-            Expected:
+            Important:
 
-            [1, 256, 256, 3]
+            Input is already:
+
+                [1, 256, 256, 3]
+
+            float32
+
+            Therefore we DO NOT call:
+
+                expandDims()
+                toFloat()
+                resizeBilinear()
         */
 
 
+        debug(
+            "Input preparation complete."
+        );
+
+
         /* =====================================================
-           STEP 6
-           RUN MODEL
+           MODEL PREDICTION
            ===================================================== */
+
+        debug(
+            "Running TFLite inference..."
+        );
+
 
         prediction =
             model.predict(
                 inputTensor
             );
+
+
+        debug(
+            "TFLite inference completed."
+        );
 
 
         console.log(
@@ -1719,88 +1799,23 @@ async function predictImage(
 
 
         /* =====================================================
-           STEP 7
-           READ OUTPUT
+           EXTRACT OUTPUT
            ===================================================== */
 
-        let probabilities;
-
-
-        /*
-            Tensor output
-        */
-
-        if (
-            prediction &&
-            typeof prediction.data ===
-            "function"
-        ) {
-
-            probabilities =
-                await prediction.data();
-
-        }
-
-
-        /*
-            Array output
-        */
-
-        else if (
-            Array.isArray(
+        const probabilities =
+            await extractPrediction(
                 prediction
-            )
-        ) {
-
-            /*
-                First item is a Tensor.
-            */
-
-            if (
-                prediction[0] &&
-                typeof
-                prediction[0].data ===
-                "function"
-            ) {
-
-                probabilities =
-                    await prediction[0].data();
-
-            }
-
-            else {
-
-                probabilities =
-                    prediction;
-
-            }
-
-        }
-
-
-        else {
-
-            throw new Error(
-                "Unsupported model output format."
-            );
-
-        }
-
-
-        probabilities =
-            Array.from(
-                probabilities
             );
 
 
-        console.log(
-            "Output length:",
+        debug(
+            "Output values: " +
             probabilities.length
         );
 
 
         console.log(
-            "Output probabilities:",
+            "Probabilities:",
             probabilities
         );
 
@@ -1812,32 +1827,8 @@ async function predictImage(
     finally {
 
         /* =====================================================
-           CLEANUP
+           CLEANUP INPUT
            ===================================================== */
-
-        if (
-            originalTensor &&
-            typeof
-            originalTensor.dispose ===
-            "function"
-        ) {
-
-            originalTensor.dispose();
-
-        }
-
-
-        if (
-            resizedTensor &&
-            typeof
-            resizedTensor.dispose ===
-            "function"
-        ) {
-
-            resizedTensor.dispose();
-
-        }
-
 
         if (
             inputTensor &&
@@ -1851,9 +1842,9 @@ async function predictImage(
         }
 
 
-        /*
-            Prediction may be a Tensor.
-        */
+        /* =====================================================
+           CLEANUP OUTPUT
+           ===================================================== */
 
         if (
             prediction &&
@@ -1866,11 +1857,6 @@ async function predictImage(
 
         }
 
-
-        /*
-            Prediction may be an array
-            of tensors.
-        */
 
         if (
             Array.isArray(
@@ -1924,7 +1910,7 @@ function displayResults(
 
 
     /* =========================================================
-       FIND MAXIMUM
+       FIND HIGHEST CLASS
        ========================================================= */
 
     let maxIndex =
@@ -1957,7 +1943,8 @@ function displayResults(
 
 
     const confidence =
-        maxProbability * 100;
+        maxProbability *
+        100;
 
 
     const predictedLabel =
@@ -1968,7 +1955,7 @@ function displayResults(
 
 
     /* =========================================================
-       CONFIDENCE CHECK
+       THRESHOLD
        ========================================================= */
 
     const accepted =
@@ -1977,7 +1964,7 @@ function displayResults(
 
 
     /* =========================================================
-       RANK PREDICTIONS
+       RANK RESULTS
        ========================================================= */
 
     const ranked =
@@ -2021,7 +2008,9 @@ function displayResults(
        MAIN RESULT
        ========================================================= */
 
-    if (accepted) {
+    if (
+        accepted
+    ) {
 
         result.innerHTML = `
 
@@ -2204,23 +2193,31 @@ function displayResults(
         );
 
 
+    /* =========================================================
+       CONSOLE
+       ========================================================= */
+
     console.log(
         "======================================"
     );
 
+
     console.log(
-        "PREDICTION RESULT"
+        "CORAL PREDICTION"
     );
+
 
     console.log(
         "Class:",
         predictedLabel
     );
 
+
     console.log(
-        "Class index:",
+        "Index:",
         maxIndex
     );
+
 
     console.log(
         "Confidence:",
@@ -2228,53 +2225,16 @@ function displayResults(
         "%"
     );
 
+
     console.log(
         "Accepted:",
         accepted
     );
 
+
     console.log(
         "======================================"
     );
-
-}
-
-
-
-/* =============================================================
-   ESCAPE HTML
-   ============================================================= */
-
-function escapeHTML(
-    value
-) {
-
-    return String(value)
-
-        .replace(
-            /&/g,
-            "&amp;"
-        )
-
-        .replace(
-            /</g,
-            "&lt;"
-        )
-
-        .replace(
-            />/g,
-            "&gt;"
-        )
-
-        .replace(
-            /"/g,
-            "&quot;"
-        )
-
-        .replace(
-            /'/g,
-            "&#039;"
-        );
 
 }
 
@@ -2288,28 +2248,44 @@ console.log(
     "======================================"
 );
 
+
 console.log(
     "CORAL SPECIES CLASSIFICATION AI"
 );
 
+
 console.log(
     "Application starting..."
 );
+
 
 console.log(
     "Model:",
     MODEL_URL
 );
 
+
 console.log(
     "Labels:",
     LABELS_URL
 );
 
+
+console.log(
+    "Input:",
+    INPUT_HEIGHT +
+    " × " +
+    INPUT_WIDTH +
+    " × " +
+    CHANNELS
+);
+
+
 console.log(
     "Confidence threshold:",
     CONFIDENCE_THRESHOLD
 );
+
 
 console.log(
     "======================================"
@@ -2317,6 +2293,7 @@ console.log(
 
 
 loadModel();
+
 
 </script>
 
