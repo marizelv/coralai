@@ -24,12 +24,15 @@
 
 
     <!-- =========================================================
-         TENSORFLOW.JS
+         FULL TENSORFLOW.JS
          ========================================================= -->
 
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-cpu"></script>
+
+    <!-- =========================================================
+         TENSORFLOW LITE
+         ========================================================= -->
 
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite/dist/tf-tflite.min.js"></script>
 
@@ -160,7 +163,7 @@
 
 
         /* =====================================================
-           UPLOAD AREA
+           UPLOAD
            ===================================================== */
 
         .upload-box {
@@ -201,7 +204,7 @@
 
 
         /* =====================================================
-           IMAGE PREVIEW
+           PREVIEW
            ===================================================== */
 
         #preview {
@@ -209,8 +212,6 @@
             display: none;
 
             max-width: 100%;
-
-            width: auto;
 
             max-height: 400px;
 
@@ -526,23 +527,19 @@
 
 
     <div class="subtitle">
-
         AI-powered coral species identification
-
     </div>
 
 
     <!-- =====================================================
-         MODEL STATUS
+         STATUS
          ===================================================== -->
 
     <div
         id="status"
         class="loading"
     >
-
         Loading AI model...
-
     </div>
 
 
@@ -576,16 +573,14 @@
 
 
     <!-- =====================================================
-         PREDICT BUTTON
+         PREDICT
          ===================================================== -->
 
     <button
         id="predictButton"
         disabled
     >
-
         PREDICT CORAL SPECIES
-
     </button>
 
 
@@ -594,14 +589,12 @@
          ===================================================== -->
 
     <div id="result">
-
         Upload a coral image to begin.
-
     </div>
 
 
     <!-- =====================================================
-         PROBABILITIES
+         PROBABILITY RESULTS
          ===================================================== -->
 
     <div id="probabilityList"></div>
@@ -625,7 +618,7 @@
 
         <div>
             <strong>Input:</strong>
-            256 × 256 RGB
+            256 × 256 × 3
         </div>
 
         <div>
@@ -633,13 +626,16 @@
             Client-side
         </div>
 
+        <div>
+            <strong>Confidence Threshold:</strong>
+            50%
+        </div>
+
     </div>
 
 
     <div class="footer">
-
         Coral Species Classification System
-
     </div>
 
 
@@ -648,7 +644,6 @@
 
 
 <script>
-
 
 /* =============================================================
    CONFIGURATION
@@ -675,9 +670,6 @@ const LABELS_URL =
     Confidence threshold
 
     0.50 = 50%
-
-    Below this value:
-    UNKNOWN
 */
 
 const CONFIDENCE_THRESHOLD =
@@ -685,7 +677,7 @@ const CONFIDENCE_THRESHOLD =
 
 
 /*
-    Number of predictions displayed
+    Number of top predictions
 */
 
 const TOP_RESULTS =
@@ -693,14 +685,14 @@ const TOP_RESULTS =
 
 
 /*
-    Your CNN input size
+    Default CNN input size
 */
 
-const DEFAULT_INPUT_HEIGHT =
+const DEFAULT_HEIGHT =
     256;
 
 
-const DEFAULT_INPUT_WIDTH =
+const DEFAULT_WIDTH =
     256;
 
 
@@ -716,10 +708,10 @@ let labels = [];
 let modelReady = false;
 
 let inputHeight =
-    DEFAULT_INPUT_HEIGHT;
+    DEFAULT_HEIGHT;
 
 let inputWidth =
-    DEFAULT_INPUT_WIDTH;
+    DEFAULT_WIDTH;
 
 
 
@@ -807,7 +799,7 @@ async function loadLabels() {
     if (!response.ok) {
 
         throw new Error(
-            "Could not load labels.json. " +
+            "Unable to load labels.json. " +
             "HTTP status: " +
             response.status
         );
@@ -820,33 +812,14 @@ async function loadLabels() {
 
 
     /*
-        Supported formats:
-
-        Format 1:
+        Format:
 
         [
             "ACER",
             "APAL",
             ...
         ]
-
-        Format 2:
-
-        {
-            "labels": [
-                "ACER",
-                "APAL"
-            ]
-        }
-
-        Format 3:
-
-        {
-            "0": "ACER",
-            "1": "APAL"
-        }
     */
-
 
     if (
         Array.isArray(data)
@@ -856,15 +829,39 @@ async function loadLabels() {
 
     }
 
+
+    /*
+        Format:
+
+        {
+            "labels": [
+                "ACER",
+                "APAL"
+            ]
+        }
+    */
+
     else if (
         data &&
-        Array.isArray(data.labels)
+        Array.isArray(
+            data.labels
+        )
     ) {
 
         labels =
             data.labels;
 
     }
+
+
+    /*
+        Format:
+
+        {
+            "0": "ACER",
+            "1": "APAL"
+        }
+    */
 
     else if (
         data &&
@@ -896,7 +893,7 @@ async function loadLabels() {
     else {
 
         throw new Error(
-            "Invalid labels.json format."
+            "Unsupported labels.json format."
         );
 
     }
@@ -907,14 +904,14 @@ async function loadLabels() {
     ) {
 
         throw new Error(
-            "No class labels were found."
+            "labels.json contains no labels."
         );
 
     }
 
 
     console.log(
-        "Loaded labels:",
+        "Labels loaded:",
         labels
     );
 
@@ -929,14 +926,15 @@ async function loadLabels() {
 function determineInputSize() {
 
     /*
-        Use default 256 × 256 first.
+        Start with your known
+        256 × 256 input.
     */
 
     inputHeight =
-        DEFAULT_INPUT_HEIGHT;
+        DEFAULT_HEIGHT;
 
     inputWidth =
-        DEFAULT_INPUT_WIDTH;
+        DEFAULT_WIDTH;
 
 
     /*
@@ -971,7 +969,8 @@ function determineInputSize() {
             h > 0
         ) {
 
-            inputHeight = h;
+            inputHeight =
+                h;
 
         }
 
@@ -981,7 +980,8 @@ function determineInputSize() {
             w > 0
         ) {
 
-            inputWidth = w;
+            inputWidth =
+                w;
 
         }
 
@@ -989,7 +989,7 @@ function determineInputSize() {
 
 
     /*
-        Alternative TensorFlow.js format.
+        Alternative API.
     */
 
     else if (
@@ -1036,7 +1036,7 @@ function determineInputSize() {
 
 
     console.log(
-        "Model input size:",
+        "Input size:",
         inputHeight +
         " × " +
         inputWidth
@@ -1047,7 +1047,7 @@ function determineInputSize() {
 
 
 /* =============================================================
-   LOAD TFLITE MODEL
+   LOAD MODEL
    ============================================================= */
 
 async function loadModel() {
@@ -1057,6 +1057,28 @@ async function loadModel() {
         setStatus(
             "Initializing TensorFlow.js...",
             "loading"
+        );
+
+
+        /*
+            Check TensorFlow.js.
+        */
+
+        if (
+            typeof tf ===
+            "undefined"
+        ) {
+
+            throw new Error(
+                "TensorFlow.js did not load."
+            );
+
+        }
+
+
+        console.log(
+            "TensorFlow.js version:",
+            tf.version.tfjs
         );
 
 
@@ -1079,19 +1101,13 @@ async function loadModel() {
 
 
         setStatus(
-            "Loading AI model...",
+            "Loading TensorFlow Lite model...",
             "loading"
         );
 
 
-        console.log(
-            "Model URL:",
-            MODEL_URL
-        );
-
-
         /*
-            Verify TFLite library.
+            Check TFLite library.
         */
 
         if (
@@ -1100,7 +1116,7 @@ async function loadModel() {
         ) {
 
             throw new Error(
-                "TensorFlow Lite library was not loaded."
+                "TensorFlow Lite library did not load."
             );
 
         }
@@ -1113,22 +1129,20 @@ async function loadModel() {
         ) {
 
             throw new Error(
-                "TFLite loader is unavailable."
+                "tflite.loadTFLiteModel() is unavailable."
             );
 
         }
 
 
+        console.log(
+            "Loading:",
+            MODEL_URL
+        );
+
+
         /*
-            IMPORTANT:
-
-            .tflite model:
-
-            tflite.loadTFLiteModel()
-
-            NOT:
-
-            tf.loadLayersModel()
+            LOAD TFLITE MODEL
         */
 
         model =
@@ -1138,13 +1152,21 @@ async function loadModel() {
 
 
         console.log(
-            "TFLite model loaded:",
+            "TFLite model loaded successfully.",
             model
         );
 
 
+        /*
+            Determine input.
+        */
+
         determineInputSize();
 
+
+        /*
+            Load labels.
+        */
 
         setStatus(
             "Loading coral species labels...",
@@ -1154,6 +1176,20 @@ async function loadModel() {
 
         await loadLabels();
 
+
+        /*
+            Verify labels.
+        */
+
+        console.log(
+            "Number of classes:",
+            labels.length
+        );
+
+
+        /*
+            Ready.
+        */
 
         modelReady = true;
 
@@ -1173,11 +1209,21 @@ async function loadModel() {
 
 
         console.log(
-            "================================"
+            "======================================"
         );
 
         console.log(
-            "MODEL READY"
+            "CORAL CLASSIFIER READY"
+        );
+
+        console.log(
+            "TensorFlow.js:",
+            tf.version.tfjs
+        );
+
+        console.log(
+            "Backend:",
+            tf.getBackend()
         );
 
         console.log(
@@ -1189,7 +1235,8 @@ async function loadModel() {
             "Input:",
             inputHeight +
             " × " +
-            inputWidth
+            inputWidth +
+            " × 3"
         );
 
         console.log(
@@ -1198,23 +1245,19 @@ async function loadModel() {
         );
 
         console.log(
-            "Backend:",
-            tf.getBackend()
-        );
-
-        console.log(
-            "================================"
+            "======================================"
         );
 
     }
 
     catch (error) {
 
-        modelReady = false;
+        modelReady =
+            false;
 
 
         console.error(
-            "MODEL ERROR:",
+            "MODEL LOADING ERROR:",
             error
         );
 
@@ -1229,7 +1272,7 @@ async function loadModel() {
 
             <div class="unknown">
 
-                Model could not be loaded.
+                Model Loading Error
 
             </div>
 
@@ -1285,7 +1328,7 @@ imageInput.addEventListener(
         ) {
 
             alert(
-                "Please select an image file."
+                "Please select an image."
             );
 
             this.value = "";
@@ -1296,7 +1339,7 @@ imageInput.addEventListener(
 
 
         /*
-            Release previous URL.
+            Release previous object URL.
         */
 
         if (
@@ -1351,7 +1394,7 @@ predictButton.addEventListener(
         if (!modelReady) {
 
             alert(
-                "The AI model is not ready."
+                "AI model is not ready."
             );
 
             return;
@@ -1366,7 +1409,7 @@ predictButton.addEventListener(
         if (!file) {
 
             alert(
-                "Please upload a coral image."
+                "Please upload a coral image first."
             );
 
             return;
@@ -1379,7 +1422,7 @@ predictButton.addEventListener(
 
 
         result.innerHTML =
-            "Analyzing image...";
+            "Analyzing coral image...";
 
 
         probabilityList.innerHTML =
@@ -1489,7 +1532,7 @@ function loadImage(file) {
 
                     reject(
                         new Error(
-                            "Unable to load image."
+                            "Unable to read the image."
                         )
                     );
 
@@ -1530,15 +1573,15 @@ async function predictImage(
     try {
 
         console.log(
-            "--------------------------------"
+            "======================================"
         );
 
         console.log(
-            "STARTING PREDICTION"
+            "STARTING CORAL PREDICTION"
         );
 
         console.log(
-            "--------------------------------"
+            "======================================"
         );
 
 
@@ -1549,15 +1592,15 @@ async function predictImage(
 
         originalTensor =
             tf.browser.fromPixels(
-                image,
-                3
+                image
             );
 
 
         console.log(
-            "Original tensor:",
+            "Original image tensor:",
             originalTensor.shape
         );
+
 
         console.log(
             "Original dtype:",
@@ -1586,41 +1629,28 @@ async function predictImage(
         );
 
 
-        console.log(
-            "Resized dtype:",
-            resizedTensor.dtype
-        );
-
-
         /* =====================================================
            STEP 3
-           CONVERT TO FLOAT32
+           FLOAT32
            
            IMPORTANT:
-
-           DO NOT USE:
-
-               tensor.toFloat()
-
-           Use:
-
-               tf.cast()
+           
+           Full TensorFlow.js is loaded above,
+           so toFloat() is available.
            ===================================================== */
 
         inputTensor =
-            tf.cast(
-                resizedTensor,
-                "float32"
-            );
+            resizedTensor.toFloat();
 
 
         console.log(
-            "Float32 tensor:",
+            "Float tensor:",
             inputTensor.shape
         );
 
+
         console.log(
-            "Float32 dtype:",
+            "Float dtype:",
             inputTensor.dtype
         );
 
@@ -1630,29 +1660,15 @@ async function predictImage(
            NORMALIZATION
            
            IMPORTANT:
+           
+           We are NOT dividing by 255 here.
 
-           Keep pixels 0–255 here.
+           This assumes the trained CNN/TFLite model
+           handles its own rescaling.
 
-           If your TFLite model contains its own
-           Rescaling(1./255), this is correct.
-
-           We do NOT divide by 255 here.
+           If your model does NOT have internal
+           Rescaling(1./255), we can change this later.
            ===================================================== */
-
-
-        /*
-            If later testing shows that your TFLite model
-            expects normalized 0–1 input WITHOUT an internal
-            Rescaling layer, change this section to:
-
-                inputTensor =
-                    tf.div(
-                        inputTensor,
-                        255
-                    );
-
-            Do NOT change it yet.
-        */
 
 
         /* =====================================================
@@ -1667,12 +1683,13 @@ async function predictImage(
 
 
         console.log(
-            "Final input:",
+            "Final input tensor:",
             inputTensor.shape
         );
 
+
         console.log(
-            "Final dtype:",
+            "Final input dtype:",
             inputTensor.dtype
         );
 
@@ -1686,7 +1703,7 @@ async function predictImage(
 
         /* =====================================================
            STEP 6
-           MODEL PREDICTION
+           RUN MODEL
            ===================================================== */
 
         prediction =
@@ -1703,14 +1720,14 @@ async function predictImage(
 
         /* =====================================================
            STEP 7
-           EXTRACT OUTPUT
+           READ OUTPUT
            ===================================================== */
 
         let probabilities;
 
 
         /*
-            Normal TensorFlow.js tensor
+            Tensor output
         */
 
         if (
@@ -1734,6 +1751,10 @@ async function predictImage(
                 prediction
             )
         ) {
+
+            /*
+                First item is a Tensor.
+            */
 
             if (
                 prediction[0] &&
@@ -1760,7 +1781,7 @@ async function predictImage(
         else {
 
             throw new Error(
-                "Unsupported TFLite output format."
+                "Unsupported model output format."
             );
 
         }
@@ -1779,7 +1800,7 @@ async function predictImage(
 
 
         console.log(
-            "Output values:",
+            "Output probabilities:",
             probabilities
         );
 
@@ -1791,7 +1812,7 @@ async function predictImage(
     finally {
 
         /* =====================================================
-           MEMORY CLEANUP
+           CLEANUP
            ===================================================== */
 
         if (
@@ -1830,6 +1851,10 @@ async function predictImage(
         }
 
 
+        /*
+            Prediction may be a Tensor.
+        */
+
         if (
             prediction &&
             typeof
@@ -1843,7 +1868,8 @@ async function predictImage(
 
 
         /*
-            Handle array output.
+            Prediction may be an array
+            of tensors.
         */
 
         if (
@@ -1898,7 +1924,7 @@ function displayResults(
 
 
     /* =========================================================
-       FIND HIGHEST PROBABILITY
+       FIND MAXIMUM
        ========================================================= */
 
     let maxIndex =
@@ -1942,7 +1968,7 @@ function displayResults(
 
 
     /* =========================================================
-       CONFIDENCE THRESHOLD
+       CONFIDENCE CHECK
        ========================================================= */
 
     const accepted =
@@ -1951,7 +1977,7 @@ function displayResults(
 
 
     /* =========================================================
-       RANK ALL PREDICTIONS
+       RANK PREDICTIONS
        ========================================================= */
 
     const ranked =
@@ -2058,7 +2084,7 @@ function displayResults(
 
             <div class="confidence">
 
-                Highest confidence:
+                Highest Confidence:
 
                 <b>
 
@@ -2071,9 +2097,8 @@ function displayResults(
 
             <div class="unknown">
 
-                ⚠ Confidence is below
+                ⚠ Confidence below
                 ${(CONFIDENCE_THRESHOLD * 100).toFixed(0)}%
-
                 threshold
 
             </div>
@@ -2156,10 +2181,10 @@ function displayResults(
                             class="bar"
                             style="
                                 width:
-                                ${Math.min(
-                                    100,
-                                    Math.max(
-                                        0,
+                                ${Math.max(
+                                    0,
+                                    Math.min(
+                                        100,
                                         percentage
                                     )
                                 )}%;
@@ -2180,11 +2205,11 @@ function displayResults(
 
 
     console.log(
-        "================================"
+        "======================================"
     );
 
     console.log(
-        "FINAL RESULT"
+        "PREDICTION RESULT"
     );
 
     console.log(
@@ -2209,7 +2234,7 @@ function displayResults(
     );
 
     console.log(
-        "================================"
+        "======================================"
     );
 
 }
@@ -2217,7 +2242,7 @@ function displayResults(
 
 
 /* =============================================================
-   HTML ESCAPE
+   ESCAPE HTML
    ============================================================= */
 
 function escapeHTML(
@@ -2260,7 +2285,7 @@ function escapeHTML(
    ============================================================= */
 
 console.log(
-    "================================"
+    "======================================"
 );
 
 console.log(
@@ -2268,7 +2293,7 @@ console.log(
 );
 
 console.log(
-    "Starting application..."
+    "Application starting..."
 );
 
 console.log(
@@ -2287,12 +2312,11 @@ console.log(
 );
 
 console.log(
-    "================================"
+    "======================================"
 );
 
 
 loadModel();
-
 
 </script>
 
