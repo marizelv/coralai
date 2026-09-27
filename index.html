@@ -1,15 +1,39 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
 
     <title>Coral Species Classification AI</title>
 
-    <!-- TensorFlow.js -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+
+    <!-- =====================================================
+         TENSORFLOW.JS CORE
+         ===================================================== -->
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.22.0/dist/tf-core.min.js"></script>
+
+
+    <!-- =====================================================
+         TENSORFLOW.JS CPU BACKEND
+         ===================================================== -->
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-cpu@4.22.0/dist/tf-backend-cpu.min.js"></script>
+
+
+    <!-- =====================================================
+         TFLITE WEB
+         ===================================================== -->
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite@0.0.1-alpha.10/dist/tf-tflite.min.js"></script>
+
 
     <style>
+
         body {
             font-family: Arial, sans-serif;
             background: #f4f7fb;
@@ -92,18 +116,24 @@
             font-size: 20px;
             margin-top: 10px;
         }
+
     </style>
+
 </head>
 
+
 <body>
+
 
 <div class="container">
 
     <h1>Coral Species Classification AI</h1>
 
+
     <div id="status">
         Loading AI model...
     </div>
+
 
     <input
         type="file"
@@ -111,14 +141,18 @@
         accept="image/*"
     >
 
+
     <br>
+
 
     <img
         id="preview"
         alt="Coral Image"
     >
 
+
     <br>
+
 
     <button
         id="predictButton"
@@ -126,6 +160,7 @@
     >
         PREDICT CORAL SPECIES
     </button>
+
 
     <div id="result">
         Upload a coral image.
@@ -136,445 +171,600 @@
 
 <script>
 
-    /* =====================================================
-       MODEL FILES
-       ===================================================== */
 
-    const MODEL_URL = "./model.json";
-    const LABELS_URL = "./labels.json";
+/* ============================================================
+   MODEL FILES
+   ============================================================ */
 
+const MODEL_URL = "./model1.tflite";
 
-    /* =====================================================
-       VARIABLES
-       ===================================================== */
+const LABELS_URL = "./labels.json";
 
-    let model = null;
-    let labels = [];
 
+/* ============================================================
+   VARIABLES
+   ============================================================ */
 
-    /* =====================================================
-       HTML ELEMENTS
-       ===================================================== */
+let model = null;
 
-    const status =
-        document.getElementById("status");
+let labels = [];
 
-    const imageInput =
-        document.getElementById("imageInput");
 
-    const preview =
-        document.getElementById("preview");
+/* ============================================================
+   HTML ELEMENTS
+   ============================================================ */
 
-    const predictButton =
-        document.getElementById("predictButton");
+const status =
+    document.getElementById("status");
 
-    const result =
-        document.getElementById("result");
+const imageInput =
+    document.getElementById("imageInput");
 
+const preview =
+    document.getElementById("preview");
 
-    /* =====================================================
-       LOAD MODEL
-       ===================================================== */
+const predictButton =
+    document.getElementById("predictButton");
 
-    async function loadModel() {
+const result =
+    document.getElementById("result");
 
-        try {
 
-            status.innerHTML =
-                "Loading AI model...";
+/* ============================================================
+   LOAD LABELS
+   ============================================================ */
 
+async function loadLabels() {
 
-            console.log(
-                "Loading:",
-                MODEL_URL
-            );
+    console.log("Loading labels...");
 
+    const response =
+        await fetch(LABELS_URL);
 
-            /* Load TensorFlow.js model */
+    if (!response.ok) {
 
-           
-
-console.log("STARTING MODEL LOAD...");
-
-model = await tf.loadLayersModel(MODEL_URL, {
-    strict: false
-});
-
-console.log("MODEL FINISHED LOADING");
-
-
-                    
-                );
-
-
-            console.log(
-                "Model loaded successfully."
-            );
-
-
-            /* Load labels */
-
-            const response =
-                await fetch(
-                    LABELS_URL
-                );
-
-
-            labels =
-                await response.json();
-
-
-            console.log(
-                "Labels:",
-                labels
-            );
-
-
-            /* Model information */
-
-            console.log(
-                "Input shape:",
-                model.inputs[0].shape
-            );
-
-
-            console.log(
-                "Output shape:",
-                model.outputs[0].shape
-            );
-
-
-            /* Ready */
-
-            status.innerHTML =
-                "✓ AI Model Loaded Successfully";
-
-            status.className =
-                "success";
-
-
-            predictButton.disabled =
-                false;
-
-
-            result.innerHTML =
-                "Upload a coral image.";
-
-        }
-
-        catch (error) {
-
-            console.error(
-                "MODEL ERROR:",
-                error
-            );
-
-
-            status.innerHTML =
-                "✗ Model Loading Error";
-
-
-            status.className =
-                "error";
-
-
-            result.innerHTML =
-                "<b>Error:</b><br>" +
-                error.message;
-
-        }
-
-    }
-
-
-    /* =====================================================
-       IMAGE PREVIEW
-       ===================================================== */
-
-    imageInput.addEventListener(
-        "change",
-        function() {
-
-            const file =
-                this.files[0];
-
-
-            if (!file) {
-                return;
-            }
-
-
-            const url =
-                URL.createObjectURL(file);
-
-
-            preview.src =
-                url;
-
-
-            preview.style.display =
-                "block";
-
-        }
-    );
-
-
-    /* =====================================================
-       PREDICT
-       ===================================================== */
-
-    predictButton.addEventListener(
-        "click",
-        async function() {
-
-            const file =
-                imageInput.files[0];
-
-
-            if (!file) {
-
-                alert(
-                    "Please upload a coral image."
-                );
-
-                return;
-            }
-
-
-            predictButton.disabled =
-                true;
-
-
-            result.innerHTML =
-                "Analyzing image...";
-
-
-            try {
-
-                /* -----------------------------------------
-                   Load image
-                   ----------------------------------------- */
-
-                const image =
-                    await loadImage(file);
-
-
-                /* -----------------------------------------
-                   Convert image to Tensor
-                   ----------------------------------------- */
-
-                let tensor =
-                    tf.browser.fromPixels(
-                        image
-                    );
-
-
-                /* -----------------------------------------
-                   Resize to model input
-                   ----------------------------------------- */
-
-                const inputShape =
-                    model.inputs[0].shape;
-
-
-                const height =
-                    inputShape[1];
-
-                const width =
-                    inputShape[2];
-
-
-                tensor =
-                    tf.image.resizeBilinear(
-                        tensor,
-                        [height, width]
-                    );
-
-
-                /* -----------------------------------------
-                   Convert to float
-                   ----------------------------------------- */
-
-                tensor =
-                    tensor.toFloat();
-
-
-                /*
-                   IMPORTANT:
-
-                   If your CNN already has:
-
-                   Rescaling(1./255)
-
-                   DO NOT divide by 255 here.
-                */
-
-
-                /* -----------------------------------------
-                   Add batch dimension
-                   ----------------------------------------- */
-
-                tensor =
-                    tensor.expandDims(0);
-
-
-                console.log(
-                    "Input tensor:",
-                    tensor.shape
-                );
-
-
-                /* -----------------------------------------
-                   Prediction
-                   ----------------------------------------- */
-
-                const prediction =
-                    model.predict(
-                        tensor
-                    );
-
-
-                const probabilities =
-                    await prediction.data();
-
-
-                /* -----------------------------------------
-                   Find highest probability
-                   ----------------------------------------- */
-
-                let maxIndex = 0;
-
-
-                for (
-                    let i = 1;
-                    i < probabilities.length;
-                    i++
-                ) {
-
-                    if (
-                        probabilities[i] >
-                        probabilities[maxIndex]
-                    ) {
-
-                        maxIndex = i;
-
-                    }
-
-                }
-
-
-                const species =
-                    labels[maxIndex] ||
-                    "Unknown";
-
-
-                const confidence =
-                    probabilities[maxIndex] *
-                    100;
-
-
-                /* -----------------------------------------
-                   Display result
-                   ----------------------------------------- */
-
-                result.innerHTML = `
-
-                    <h3>Prediction Result</h3>
-
-                    <div class="species">
-                        ${species}
-                    </div>
-
-                    <div class="confidence">
-                        Confidence:
-                        <b>
-                            ${confidence.toFixed(2)}%
-                        </b>
-                    </div>
-
-                `;
-
-
-                /* -----------------------------------------
-                   Clean memory
-                   ----------------------------------------- */
-
-                tensor.dispose();
-                prediction.dispose();
-
-            }
-
-            catch (error) {
-
-                console.error(
-                    "Prediction error:",
-                    error
-                );
-
-
-                result.innerHTML =
-                    "<b>Prediction Error:</b><br>" +
-                    error.message;
-
-            }
-
-
-            predictButton.disabled =
-                false;
-
-        }
-    );
-
-
-    /* =====================================================
-       IMAGE LOADER
-       ===================================================== */
-
-    function loadImage(file) {
-
-        return new Promise(
-            function(resolve, reject) {
-
-                const image =
-                    new Image();
-
-
-                image.onload =
-                    function() {
-
-                        resolve(image);
-
-                    };
-
-
-                image.onerror =
-                    function() {
-
-                        reject(
-                            new Error(
-                                "Unable to load image."
-                            )
-                        );
-
-                    };
-
-
-                image.src =
-                    URL.createObjectURL(file);
-
-            }
+        throw new Error(
+            "Unable to load labels.json. HTTP " +
+            response.status
         );
 
     }
 
+    labels =
+        await response.json();
 
-    /* =====================================================
-       START MODEL
-       ===================================================== */
+    console.log(
+        "Labels loaded:",
+        labels
+    );
 
-    loadModel();
+}
+
+
+/* ============================================================
+   LOAD TFLITE MODEL
+   ============================================================ */
+
+async function loadModel() {
+
+    try {
+
+        status.innerHTML =
+            "Loading AI model...";
+
+        console.log(
+            "================================="
+        );
+
+        console.log(
+            "CORAL AI TFLITE MODEL"
+        );
+
+        console.log(
+            "================================="
+        );
+
+
+        console.log(
+            "TensorFlow.js:",
+            tf.version_core
+        );
+
+
+        console.log(
+            "TFLite model:",
+            MODEL_URL
+        );
+
+
+        /* ----------------------------------------------------
+           Set CPU backend
+           ---------------------------------------------------- */
+
+        await tf.setBackend("cpu");
+
+        await tf.ready();
+
+
+        console.log(
+            "Backend:",
+            tf.getBackend()
+        );
+
+
+        /* ----------------------------------------------------
+           Check model URL
+           ---------------------------------------------------- */
+
+        const modelResponse =
+            await fetch(MODEL_URL);
+
+
+        console.log(
+            "TFLite HTTP status:",
+            modelResponse.status
+        );
+
+
+        if (!modelResponse.ok) {
+
+            throw new Error(
+                "model1.tflite could not be loaded. HTTP " +
+                modelResponse.status
+            );
+
+        }
+
+
+        /* ----------------------------------------------------
+           Load TFLite model
+           ---------------------------------------------------- */
+
+        console.log(
+            "Starting TFLite model loading..."
+        );
+
+
+        model =
+            await tflite.loadTFLiteModel(
+                MODEL_URL
+            );
+
+
+        console.log(
+            "✓ TFLITE MODEL LOADED"
+        );
+
+
+        /* ----------------------------------------------------
+           Model information
+           ---------------------------------------------------- */
+
+        console.log(
+            "Input shape:",
+            model.inputs[0].shape
+        );
+
+
+        console.log(
+            "Input dtype:",
+            model.inputs[0].dtype
+        );
+
+
+        console.log(
+            "Output shape:",
+            model.outputs[0].shape
+        );
+
+
+        console.log(
+            "Output dtype:",
+            model.outputs[0].dtype
+        );
+
+
+        /* ----------------------------------------------------
+           Load labels
+           ---------------------------------------------------- */
+
+        await loadLabels();
+
+
+        /* ----------------------------------------------------
+           Check number of labels
+           ---------------------------------------------------- */
+
+        console.log(
+            "Number of labels:",
+            labels.length
+        );
+
+
+        /* ----------------------------------------------------
+           READY
+           ---------------------------------------------------- */
+
+        status.innerHTML =
+            "✓ AI Model Loaded Successfully";
+
+        status.className =
+            "success";
+
+
+        predictButton.disabled =
+            false;
+
+
+        result.innerHTML =
+            "Upload a coral image.";
+
+    }
+
+
+    catch (error) {
+
+        console.error(
+            "================================="
+        );
+
+        console.error(
+            "TFLITE MODEL ERROR:"
+        );
+
+        console.error(error);
+
+        console.error(
+            "================================="
+        );
+
+
+        status.innerHTML =
+            "✗ Model Loading Error";
+
+
+        status.className =
+            "error";
+
+
+        result.innerHTML =
+            "<b>Model Error:</b><br>" +
+            error.message;
+
+    }
+
+}
+
+
+/* ============================================================
+   IMAGE PREVIEW
+   ============================================================ */
+
+imageInput.addEventListener(
+    "change",
+    function() {
+
+        const file =
+            this.files[0];
+
+
+        if (!file) {
+            return;
+        }
+
+
+        const url =
+            URL.createObjectURL(file);
+
+
+        preview.src =
+            url;
+
+
+        preview.style.display =
+            "block";
+
+    }
+);
+
+
+/* ============================================================
+   PREDICTION
+   ============================================================ */
+
+predictButton.addEventListener(
+    "click",
+    async function() {
+
+        const file =
+            imageInput.files[0];
+
+
+        if (!file) {
+
+            alert(
+                "Please upload a coral image."
+            );
+
+            return;
+        }
+
+
+        predictButton.disabled =
+            true;
+
+
+        result.innerHTML =
+            "Analyzing image...";
+
+
+        try {
+
+
+            /* ------------------------------------------------
+               Load image
+               ------------------------------------------------ */
+
+            const image =
+                await loadImage(file);
+
+
+            /* ------------------------------------------------
+               Get TFLite input shape
+               ------------------------------------------------ */
+
+            const inputShape =
+                model.inputs[0].shape;
+
+
+            console.log(
+                "Model input shape:",
+                inputShape
+            );
+
+
+            const height =
+                inputShape[1];
+
+
+            const width =
+                inputShape[2];
+
+
+            /* ------------------------------------------------
+               Convert image to tensor
+               ------------------------------------------------ */
+
+            let tensor =
+                tf.browser.fromPixels(image);
+
+
+            /* ------------------------------------------------
+               Resize
+               ------------------------------------------------ */
+
+            tensor =
+                tf.image.resizeBilinear(
+                    tensor,
+                    [height, width]
+                );
+
+
+            /* ------------------------------------------------
+               Convert to float
+               ------------------------------------------------ */
+
+            tensor =
+                tensor.toFloat();
+
+
+            /*
+               IMPORTANT:
+
+               If your TFLite model expects
+               values from 0–255, keep this.
+
+               If your model expects
+               normalized 0–1 values,
+               use:
+
+               tensor = tensor.div(255.0);
+
+               We should verify your TFLite
+               input specification before
+               changing this.
+            */
+
+
+            /* ------------------------------------------------
+               Add batch dimension
+               ------------------------------------------------ */
+
+            tensor =
+                tensor.expandDims(0);
+
+
+            console.log(
+                "Input tensor:",
+                tensor.shape
+            );
+
+
+            /* ------------------------------------------------
+               TFLITE PREDICTION
+               ------------------------------------------------ */
+
+            console.log(
+                "Running TFLite inference..."
+            );
+
+
+            const prediction =
+                model.predict(tensor);
+
+
+            console.log(
+                "Prediction tensor:",
+                prediction
+            );
+
+
+            const probabilities =
+                await prediction.data();
+
+
+            console.log(
+                "Probabilities:",
+                probabilities
+            );
+
+
+            /* ------------------------------------------------
+               Find highest probability
+               ------------------------------------------------ */
+
+            let maxIndex = 0;
+
+
+            for (
+                let i = 1;
+                i < probabilities.length;
+                i++
+            ) {
+
+                if (
+                    probabilities[i] >
+                    probabilities[maxIndex]
+                ) {
+
+                    maxIndex =
+                        i;
+
+                }
+
+            }
+
+
+            const species =
+                labels[maxIndex] ||
+                "Unknown";
+
+
+            const confidence =
+                probabilities[maxIndex] *
+                100;
+
+
+            /* ------------------------------------------------
+               DISPLAY RESULT
+               ------------------------------------------------ */
+
+            result.innerHTML = `
+
+                <h3>Prediction Result</h3>
+
+                <div class="species">
+                    ${species}
+                </div>
+
+                <div class="confidence">
+
+                    Confidence:
+                    <b>
+                        ${confidence.toFixed(2)}%
+                    </b>
+
+                </div>
+
+            `;
+
+
+            /* ------------------------------------------------
+               CLEAN MEMORY
+               ------------------------------------------------ */
+
+            tensor.dispose();
+
+            prediction.dispose();
+
+
+        }
+
+
+        catch (error) {
+
+            console.error(
+                "Prediction error:",
+                error
+            );
+
+
+            result.innerHTML =
+                "<b>Prediction Error:</b><br>" +
+                error.message;
+
+        }
+
+
+        predictButton.disabled =
+            false;
+
+    }
+);
+
+
+/* ============================================================
+   IMAGE LOADER
+   ============================================================ */
+
+function loadImage(file) {
+
+    return new Promise(
+        function(resolve, reject) {
+
+            const image =
+                new Image();
+
+
+            image.onload =
+                function() {
+
+                    resolve(image);
+
+                };
+
+
+            image.onerror =
+                function() {
+
+                    reject(
+                        new Error(
+                            "Unable to load image."
+                        )
+                    );
+
+                };
+
+
+            image.src =
+                URL.createObjectURL(file);
+
+        }
+    );
+
+}
+
+
+/* ============================================================
+   START APPLICATION
+   ============================================================ */
+
+loadModel();
+
 
 </script>
 
+
 </body>
+
 </html>
