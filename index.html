@@ -20,8 +20,8 @@ h1{margin-top:0;color:#0077b6;font-size:32px}.subtitle{color:#555;margin-bottom:
 input[type=file]{width:100%;max-width:500px;padding:10px;cursor:pointer}
 #preview{display:none;max-width:100%;max-height:400px;margin:25px auto;border-radius:15px;box-shadow:0 5px 20px rgba(0,0,0,.15)}
 button{width:100%;max-width:450px;padding:16px 25px;margin-top:15px;background:#0077b6;color:#fff;border:0;border-radius:10px;font-size:17px;font-weight:bold;cursor:pointer;transition:.2s}button:hover:not(:disabled){background:#005f8f;transform:translateY(-1px)}button:disabled{background:#aaa;cursor:not-allowed}
-#result{margin-top:30px;padding:25px;background:#f1f5f8;border-radius:15px;min-height:120px}.result-title{color:#555;font-size:16px;margin-bottom:10px}.species{font-size:30px;font-weight:bold;color:#0077b6;margin:10px 0}.confidence{font-size:20px;margin-top:10px}.inference-time{font-size:18px;margin-top:12px;color:#333}.inference-time b{color:#0077b6}.accepted{color:#198754;font-weight:bold;margin-top:10px}.unknown{color:#dc3545;font-weight:bold;margin-top:10px}
-#probabilityList{margin-top:25px;text-align:left}.probability-title{text-align:center;color:#0077b6}.probability-item{margin:12px 0}.probability-label{display:flex;justify-content:space-between;font-size:14px;margin-bottom:5px}.bar-container{width:100%;height:10px;background:#ddd;border-radius:10px;overflow:hidden}.bar{height:100%;background:#0077b6;border-radius:10px}
+#result{margin-top:30px;padding:25px;background:#f1f5f8;border-radius:15px;min-height:150px}.result-title{color:#555;font-size:16px;margin-bottom:10px}.species{font-size:30px;font-weight:bold;color:#0077b6;margin:10px 0}.confidence{font-size:20px;margin-top:10px}.inference-time{font-size:18px;margin-top:12px;color:#333}.inference-time b{color:#0077b6}.accepted{color:#198754;font-weight:bold;margin-top:10px}.unknown{color:#dc3545;font-weight:bold;margin-top:10px}
+#probabilityList{margin-top:25px;text-align:left}.probability-title{text-align:center;color:#0077b6}.probability-item{margin:12px 0}.probability-label{display:flex;justify-content:space-between;gap:15px;font-size:14px;margin-bottom:5px}.bar-container{width:100%;height:10px;background:#ddd;border-radius:10px;overflow:hidden}.bar{height:100%;background:#0077b6;border-radius:10px}
 .model-info{margin-top:25px;padding:15px;background:#eef8fc;border-radius:10px;text-align:left;font-size:14px;line-height:1.8}.model-info strong{color:#0077b6}
 #debug{display:none;margin-top:20px;padding:15px;background:#111;color:#00ff00;border-radius:10px;text-align:left;font-family:monospace;font-size:12px;white-space:pre-wrap;overflow-x:auto}
 .footer{margin-top:25px;font-size:13px;color:#777}
@@ -54,7 +54,8 @@ button{width:100%;max-width:450px;padding:16px 25px;margin-top:15px;background:#
 <div><strong>Input:</strong> 256 × 256 × 3</div>
 <div><strong>Data Type:</strong> Float32</div>
 <div><strong>Inference:</strong> Client-side</div>
-<div><strong>Confidence Threshold:</strong> 50%</div>
+<div><strong>Output:</strong> Logits → Temperature Scaling → Softmax</div>
+<div><strong>Rejection Threshold:</strong> 50%</div>
 <div><strong>Inference Time:</strong> Measured in milliseconds (ms)</div>
 </div>
 
@@ -68,10 +69,29 @@ button{width:100%;max-width:450px;padding:16px 25px;margin-top:15px;background:#
    ============================================================= */
 const MODEL_URL = "./model1.tflite";
 const LABELS_URL = "./labels.json";
+
 const INPUT_HEIGHT = 256;
 const INPUT_WIDTH = 256;
 const CHANNELS = 3;
-const CONFIDENCE_THRESHOLD = 0.50;
+
+/*
+   REJECTION THRESHOLD
+   Prediction is accepted only when the highest probability
+   is at least this value.
+
+   0.50 = 50%
+*/
+const CONFIDENCE_THRESHOLD = 0.95;
+
+/*
+   TEMPERATURE SCALING
+
+   T = 1.0 means no change to the logits before Softmax.
+   Replace this with a temperature calibrated on your
+   validation set when you have a validated T value.
+*/
+const TEMPERATURE = 1.0;
+
 const TOP_RESULTS = 5;
 
 /* =============================================================
@@ -98,7 +118,9 @@ const debugElement = document.getElementById("debug");
    ============================================================= */
 function debug(message){
     console.log(message);
-    if(debugElement) debugElement.textContent += message + "\n";
+    if(debugElement){
+        debugElement.textContent += message + "\n";
+    }
 }
 
 function setStatus(message,type){
@@ -122,21 +144,27 @@ async function loadLabels(){
     debug("Loading labels.json...");
 
     const response = await fetch(LABELS_URL,{cache:"no-cache"});
+
     if(!response.ok){
-        throw new Error("Could not load labels.json. HTTP " + response.status);
+        throw new Error(
+            "Could not load labels.json. HTTP " + response.status
+        );
     }
 
     const data = await response.json();
 
     if(Array.isArray(data)){
         labels = data;
-    }else if(data && Array.isArray(data.labels)){
+    }
+    else if(data && Array.isArray(data.labels)){
         labels = data.labels;
-    }else if(data && typeof data === "object"){
+    }
+    else if(data && typeof data === "object"){
         labels = Object.keys(data)
             .sort((a,b)=>Number(a)-Number(b))
             .map(key=>data[key]);
-    }else{
+    }
+    else{
         throw new Error("Unsupported labels.json format.");
     }
 
@@ -154,7 +182,11 @@ async function loadLabels(){
 async function loadModel(){
     try{
         debugElement.textContent = "";
-        setStatus("Initializing TensorFlow.js...","loading");
+
+        setStatus(
+            "Initializing TensorFlow.js...",
+            "loading"
+        );
 
         if(typeof tf === "undefined"){
             throw new Error("TensorFlow.js failed to load.");
@@ -165,38 +197,69 @@ async function loadModel(){
 
         await tf.setBackend("cpu");
         await tf.ready();
+
         debug("Backend: " + tf.getBackend());
 
-        setStatus("Loading AI model...","loading");
+        setStatus(
+            "Loading AI model...",
+            "loading"
+        );
 
         if(typeof tflite === "undefined"){
-            throw new Error("TensorFlow Lite library failed to load.");
+            throw new Error(
+                "TensorFlow Lite library failed to load."
+            );
         }
 
         if(typeof tflite.loadTFLiteModel !== "function"){
-            throw new Error("TFLite model loader is unavailable.");
+            throw new Error(
+                "TFLite model loader is unavailable."
+            );
         }
 
         debug("Loading model: " + MODEL_URL);
+
         model = await tflite.loadTFLiteModel(MODEL_URL);
+
         debug("TFLite model loaded successfully.");
 
-        setStatus("Loading coral species labels...","loading");
+        setStatus(
+            "Loading coral species labels...",
+            "loading"
+        );
+
         await loadLabels();
 
         modelReady = true;
-        setStatus("✓ AI Model Loaded Successfully","success");
+
+        setStatus(
+            "✓ AI Model Loaded Successfully",
+            "success"
+        );
+
         predictButton.disabled = false;
         result.innerHTML = "Upload a coral image to begin.";
+
         debug("MODEL READY");
+
     }catch(error){
         modelReady = false;
+
         console.error("MODEL ERROR:",error);
-        setStatus("✗ Model Loading Error","error");
+
+        setStatus(
+            "✗ Model Loading Error",
+            "error"
+        );
+
         result.innerHTML = `
             <div class="unknown">Model Loading Error</div>
-            <br><b>Error:</b><br>${escapeHTML(error.message || String(error))}
+            <br>
+            <b>Error:</b>
+            <br>
+            ${escapeHTML(error.message || String(error))}
         `;
+
         predictButton.disabled = true;
     }
 }
@@ -223,11 +286,14 @@ imageInput.addEventListener("change",function(){
     }
 
     const url = URL.createObjectURL(file);
+
     preview.dataset.url = url;
     preview.src = url;
     preview.style.display = "block";
 
-    result.innerHTML = "Image selected. Click PREDICT CORAL SPECIES.";
+    result.innerHTML =
+        "Image selected. Click PREDICT CORAL SPECIES.";
+
     probabilityList.innerHTML = "";
 });
 
@@ -246,7 +312,9 @@ function loadImage(file){
 
         image.onerror = function(){
             URL.revokeObjectURL(url);
-            reject(new Error("Unable to load the selected image."));
+            reject(
+                new Error("Unable to load the selected image.")
+            );
         };
 
         image.src = url;
@@ -258,24 +326,52 @@ function loadImage(file){
    ============================================================= */
 function createModelInput(image){
     const canvas = document.createElement("canvas");
+
     canvas.width = INPUT_WIDTH;
     canvas.height = INPUT_HEIGHT;
 
-    const context = canvas.getContext("2d",{willReadFrequently:true});
-    if(!context) throw new Error("Unable to create Canvas 2D context.");
+    const context = canvas.getContext(
+        "2d",
+        {willReadFrequently:true}
+    );
 
-    context.drawImage(image,0,0,INPUT_WIDTH,INPUT_HEIGHT);
+    if(!context){
+        throw new Error(
+            "Unable to create Canvas 2D context."
+        );
+    }
 
-    const imageData = context.getImageData(0,0,INPUT_WIDTH,INPUT_HEIGHT);
+    context.drawImage(
+        image,
+        0,
+        0,
+        INPUT_WIDTH,
+        INPUT_HEIGHT
+    );
+
+    const imageData = context.getImageData(
+        0,
+        0,
+        INPUT_WIDTH,
+        INPUT_HEIGHT
+    );
+
     const pixels = imageData.data;
-    const floatData = new Float32Array(INPUT_WIDTH * INPUT_HEIGHT * CHANNELS);
+
+    const floatData = new Float32Array(
+        INPUT_WIDTH * INPUT_HEIGHT * CHANNELS
+    );
 
     let destinationIndex = 0;
 
-    for(let sourceIndex=0;sourceIndex<pixels.length;sourceIndex+=4){
-        floatData[destinationIndex++] = pixels[sourceIndex];
-        floatData[destinationIndex++] = pixels[sourceIndex+1];
-        floatData[destinationIndex++] = pixels[sourceIndex+2];
+    for(
+        let sourceIndex = 0;
+        sourceIndex < pixels.length;
+        sourceIndex += 4
+    ){
+        floatData[destinationIndex++] = pixels[sourceIndex] / 255.0;
+        floatData[destinationIndex++] = pixels[sourceIndex + 1] / 255.0;
+        floatData[destinationIndex++] = pixels[sourceIndex + 2] / 255.0;
     }
 
     const inputTensor = tf.tensor4d(
@@ -285,7 +381,9 @@ function createModelInput(image){
     );
 
     debug("Input tensor created.");
-    debug("Shape: [" + inputTensor.shape.join(", ") + "]");
+    debug(
+        "Shape: [" + inputTensor.shape.join(", ") + "]"
+    );
     debug("Dtype: " + inputTensor.dtype);
 
     return inputTensor;
@@ -295,18 +393,132 @@ function createModelInput(image){
    EXTRACT MODEL OUTPUT
    ============================================================= */
 async function extractPrediction(prediction){
-    if(prediction && typeof prediction.data === "function"){
+    if(
+        prediction &&
+        typeof prediction.data === "function"
+    ){
         return Array.from(await prediction.data());
     }
 
     if(Array.isArray(prediction)){
-        if(prediction.length > 0 && prediction[0] && typeof prediction[0].data === "function"){
-            return Array.from(await prediction[0].data());
+        if(
+            prediction.length > 0 &&
+            prediction[0] &&
+            typeof prediction[0].data === "function"
+        ){
+            return Array.from(
+                await prediction[0].data()
+            );
         }
+
         return Array.from(prediction);
     }
 
-    throw new Error("The TFLite model returned an unsupported output format.");
+    throw new Error(
+        "The TFLite model returned an unsupported output format."
+    );
+}
+
+/* =============================================================
+   SOFTMAX WITH TEMPERATURE SCALING
+   ============================================================= */
+function softmaxWithTemperature(logits,temperature){
+    if(!Array.isArray(logits) || logits.length === 0){
+        throw new Error("Invalid CNN output.");
+    }
+
+    if(!Number.isFinite(temperature) || temperature <= 0){
+        throw new Error("Temperature must be greater than zero.");
+    }
+
+    const scaled = logits.map(value => {
+        const number = Number(value);
+
+        if(!Number.isFinite(number)){
+            throw new Error(
+                "CNN output contains a non-finite value."
+            );
+        }
+
+        return number / temperature;
+    });
+
+    /* Numerical stability: subtract maximum logit. */
+    const maxLogit = Math.max(...scaled);
+
+    const exponentials = scaled.map(
+        value => Math.exp(value - maxLogit)
+    );
+
+    const sum = exponentials.reduce(
+        (total,value) => total + value,
+        0
+    );
+
+    if(!Number.isFinite(sum) || sum <= 0){
+        throw new Error("Unable to calculate Softmax probabilities.");
+    }
+
+    return exponentials.map(
+        value => value / sum
+    );
+}
+
+/* =============================================================
+   CHECK WHETHER OUTPUT IS ALREADY A PROBABILITY DISTRIBUTION
+   ============================================================= */
+function isProbabilityDistribution(values){
+    if(!Array.isArray(values) || values.length === 0){
+        return false;
+    }
+
+    const allInRange = values.every(
+        value => Number.isFinite(value) && value >= 0 && value <= 1
+    );
+
+    if(!allInRange){
+        return false;
+    }
+
+    const sum = values.reduce(
+        (total,value) => total + value,
+        0
+    );
+
+    return Math.abs(sum - 1.0) < 0.001;
+}
+
+/* =============================================================
+   CONVERT CNN OUTPUT TO PROBABILITIES
+   ============================================================= */
+function convertToProbabilities(rawOutput){
+    /*
+       If the TFLite model already returns probabilities that
+       sum to approximately 1, do not apply Softmax twice.
+    */
+    if(isProbabilityDistribution(rawOutput)){
+        debug("Model output detected as probabilities.");
+        return rawOutput.map(Number);
+    }
+
+    /*
+       Otherwise treat the output as logits and apply:
+
+       logits
+          ↓
+       temperature scaling
+          ↓
+       Softmax
+          ↓
+       probabilities
+    */
+    debug("Model output detected as logits.");
+    debug("Temperature: " + TEMPERATURE);
+
+    return softmaxWithTemperature(
+        rawOutput,
+        TEMPERATURE
+    );
 }
 
 /* =============================================================
@@ -324,48 +536,92 @@ async function predictImage(image){
         debug("Input preparation complete.");
         debug("Running TFLite inference...");
 
-        /* ---------------------------------------------------------
-           INFERENCE TIME MEASUREMENT
+        /*
            IMPORTANT:
            Only model.predict() is measured.
-           Unit = milliseconds (ms).
-           Image loading and preprocessing are NOT included.
-           --------------------------------------------------------- */
+           Image loading, canvas preprocessing,
+           Softmax, rendering, and UI updates are excluded.
+        */
         const inferenceStartTime = performance.now();
 
         prediction = model.predict(inputTensor);
 
         const inferenceEndTime = performance.now();
-        const inferenceTimeMs = inferenceEndTime - inferenceStartTime;
+
+        const inferenceTimeMs =
+            inferenceEndTime - inferenceStartTime;
+
         lastInferenceTimeMs = inferenceTimeMs;
 
         debug("TFLite inference completed.");
-        debug("Inference time: " + inferenceTimeMs.toFixed(2) + " ms");
+        debug(
+            "Inference time: " +
+            inferenceTimeMs.toFixed(2) +
+            " ms"
+        );
 
-        console.log("TFLite inference time:",inferenceTimeMs.toFixed(2),"ms");
-        console.log("Raw prediction:",prediction);
+        console.log(
+            "TFLite inference time:",
+            inferenceTimeMs.toFixed(2),
+            "ms"
+        );
 
-        const probabilities = await extractPrediction(prediction);
+        const rawOutput =
+            await extractPrediction(prediction);
 
-        debug("Output values: " + probabilities.length);
-        console.log("Probabilities:",probabilities);
+        debug(
+            "Raw output values: " +
+            rawOutput.length
+        );
+
+        console.log("Raw CNN output:",rawOutput);
+
+        const probabilities =
+            convertToProbabilities(rawOutput);
+
+        const probabilitySum = probabilities.reduce(
+            (total,value) => total + value,
+            0
+        );
+
+        debug(
+            "Probability sum: " +
+            probabilitySum.toFixed(6)
+        );
+
+        console.log(
+            "Softmax probabilities:",
+            probabilities
+        );
 
         return {
             probabilities: probabilities,
             inferenceTimeMs: inferenceTimeMs
         };
+
     }finally{
-        if(inputTensor && typeof inputTensor.dispose === "function"){
+        if(
+            inputTensor &&
+            typeof inputTensor.dispose === "function"
+        ){
             inputTensor.dispose();
         }
 
-        if(prediction && typeof prediction.dispose === "function"){
+        if(
+            prediction &&
+            typeof prediction.dispose === "function"
+        ){
             prediction.dispose();
         }
 
         if(Array.isArray(prediction)){
             prediction.forEach(item=>{
-                if(item && typeof item.dispose === "function") item.dispose();
+                if(
+                    item &&
+                    typeof item.dispose === "function"
+                ){
+                    item.dispose();
+                }
             });
         }
     }
@@ -378,19 +634,38 @@ function displayResults(predictionResult){
     const probabilities = predictionResult.probabilities;
     const inferenceTimeMs = predictionResult.inferenceTimeMs;
 
-    if(!probabilities || probabilities.length === 0){
-        throw new Error("The model returned no prediction values.");
+    if(
+        !probabilities ||
+        probabilities.length === 0
+    ){
+        throw new Error(
+            "The model returned no prediction values."
+        );
     }
 
     let maxIndex = 0;
+
     for(let i=1;i<probabilities.length;i++){
-        if(probabilities[i] > probabilities[maxIndex]) maxIndex = i;
+        if(
+            probabilities[i] >
+            probabilities[maxIndex]
+        ){
+            maxIndex = i;
+        }
     }
 
     const maxProbability = probabilities[maxIndex];
     const confidence = maxProbability * 100;
-    const predictedLabel = labels[maxIndex] || "Unknown";
-    const accepted = maxProbability >= CONFIDENCE_THRESHOLD;
+
+    const predictedLabel =
+        labels[maxIndex] || "Unknown";
+
+    /*
+       REJECTION DECISION
+       This is applied AFTER Softmax.
+    */
+    const accepted =
+        maxProbability >= CONFIDENCE_THRESHOLD;
 
     const ranked = probabilities
         .map((probability,index)=>({
@@ -398,7 +673,9 @@ function displayResults(predictionResult){
             probability:probability,
             label:labels[index] || "Class " + index
         }))
-        .sort((a,b)=>b.probability-a.probability);
+        .sort(
+            (a,b) => b.probability - a.probability
+        );
 
     const inferenceHTML = `
         <div class="inference-time">
@@ -409,52 +686,117 @@ function displayResults(predictionResult){
 
     if(accepted){
         result.innerHTML = `
-            <div class="result-title">Predicted Coral Species</div>
-            <div class="species">${escapeHTML(predictedLabel)}</div>
-            <div class="confidence">
-                Confidence: <b>${confidence.toFixed(2)}%</b>
+            <div class="result-title">
+                Predicted Coral Species
             </div>
+
+            <div class="species">
+                ${escapeHTML(predictedLabel)}
+            </div>
+
+            <div class="confidence">
+                Confidence:
+                <b>${confidence.toFixed(2)}%</b>
+            </div>
+
             ${inferenceHTML}
-            <div class="accepted">✓ Prediction Accepted</div>
+
+            <div class="accepted">
+                ✓ Prediction Accepted
+            </div>
         `;
-    }else{
+    }
+    else{
         result.innerHTML = `
-            <div class="result-title">Classification Result</div>
-            <div class="species unknown">UNKNOWN</div>
-            <div class="confidence">
-                Highest Confidence: <b>${confidence.toFixed(2)}%</b>
+            <div class="result-title">
+                Classification Result
             </div>
+
+            <div class="species unknown">
+                UNKNOWN
+            </div>
+
+            <div class="confidence">
+                Highest Confidence:
+                <b>${confidence.toFixed(2)}%</b>
+            </div>
+
             ${inferenceHTML}
+
             <div class="unknown">
-                ⚠ Confidence below ${(CONFIDENCE_THRESHOLD*100).toFixed(0)}% threshold
+                ⚠ Confidence below
+                ${(CONFIDENCE_THRESHOLD * 100).toFixed(0)}%
+                rejection threshold
             </div>
         `;
     }
 
-    probabilityList.innerHTML = `<h3 class="probability-title">Top Predictions</h3>`;
+    /* =========================================================
+       TOP PREDICTIONS
+       ========================================================= */
+    probabilityList.innerHTML = `
+        <h3 class="probability-title">
+            Top Predictions
+        </h3>
+    `;
 
-    ranked.slice(0,Math.min(TOP_RESULTS,ranked.length)).forEach(item=>{
-        const percentage = item.probability * 100;
-        const row = document.createElement("div");
-        row.className = "probability-item";
-        row.innerHTML = `
-            <div class="probability-label">
-                <span>${escapeHTML(item.label)}</span>
-                <span>${percentage.toFixed(2)}%</span>
-            </div>
-            <div class="bar-container">
-                <div class="bar" style="width:${Math.max(0,Math.min(100,percentage))}%"></div>
-            </div>
-        `;
-        probabilityList.appendChild(row);
-    });
+    ranked
+        .slice(
+            0,
+            Math.min(TOP_RESULTS,ranked.length)
+        )
+        .forEach(item=>{
+            const percentage =
+                item.probability * 100;
 
+            const row =
+                document.createElement("div");
+
+            row.className = "probability-item";
+
+            row.innerHTML = `
+                <div class="probability-label">
+                    <span>
+                        ${escapeHTML(item.label)}
+                    </span>
+                    <span>
+                        ${percentage.toFixed(2)}%
+                    </span>
+                </div>
+
+                <div class="bar-container">
+                    <div
+                        class="bar"
+                        style="width:${Math.max(
+                            0,
+                            Math.min(100,percentage)
+                        )}%"
+                    ></div>
+                </div>
+            `;
+
+            probabilityList.appendChild(row);
+        });
+
+    /* =========================================================
+       CONSOLE
+       ========================================================= */
     console.log("======================================");
     console.log("CORAL PREDICTION");
     console.log("Class:",predictedLabel);
     console.log("Index:",maxIndex);
-    console.log("Confidence:",confidence.toFixed(2)+"%");
-    console.log("Inference Time:",inferenceTimeMs.toFixed(2)+" ms");
+    console.log(
+        "Confidence:",
+        confidence.toFixed(2) + "%"
+    );
+    console.log(
+        "Rejection threshold:",
+        (CONFIDENCE_THRESHOLD * 100).toFixed(0) + "%"
+    );
+    console.log(
+        "Inference Time:",
+        inferenceTimeMs.toFixed(2) + " ms"
+    );
     console.log("Accepted:",accepted);
     console.log("======================================");
 }
@@ -464,11 +806,15 @@ function displayResults(predictionResult){
    ============================================================= */
 predictButton.addEventListener("click",async function(){
     if(!modelReady){
-        setStatus("Please wait for the AI model to finish loading.","loading");
+        setStatus(
+            "Please wait for the AI model to finish loading.",
+            "loading"
+        );
         return;
     }
 
     const file = imageInput.files[0];
+
     if(!file){
         alert("Please select a coral image first.");
         return;
@@ -476,22 +822,52 @@ predictButton.addEventListener("click",async function(){
 
     try{
         predictButton.disabled = true;
-        setStatus("Classifying coral image...","loading");
-        result.innerHTML = "Running CNN inference...";
+
+        setStatus(
+            "Classifying coral image...",
+            "loading"
+        );
+
+        result.innerHTML =
+            "Running CNN inference...";
+
         probabilityList.innerHTML = "";
 
         const image = await loadImage(file);
-        const predictionResult = await predictImage(image);
+
+        const predictionResult =
+            await predictImage(image);
+
         displayResults(predictionResult);
 
-        setStatus("✓ Prediction completed","success");
+        setStatus(
+            "✓ Prediction completed",
+            "success"
+        );
+
     }catch(error){
-        console.error("PREDICTION ERROR:",error);
-        setStatus("✗ Prediction Error","error");
+        console.error(
+            "PREDICTION ERROR:",
+            error
+        );
+
+        setStatus(
+            "✗ Prediction Error",
+            "error"
+        );
+
         result.innerHTML = `
-            <div class="unknown">Prediction Error</div>
-            <br><b>Error:</b><br>${escapeHTML(error.message || String(error))}
+            <div class="unknown">
+                Prediction Error
+            </div>
+            <br>
+            <b>Error:</b>
+            <br>
+            ${escapeHTML(
+                error.message || String(error)
+            )}
         `;
+
     }finally{
         predictButton.disabled = !modelReady;
     }
@@ -505,8 +881,20 @@ console.log("CORAL SPECIES CLASSIFICATION AI");
 console.log("Application starting...");
 console.log("Model:",MODEL_URL);
 console.log("Labels:",LABELS_URL);
-console.log("Input:",INPUT_HEIGHT + " × " + INPUT_WIDTH + " × " + CHANNELS);
-console.log("Confidence threshold:",CONFIDENCE_THRESHOLD);
+console.log(
+    "Input:",
+    INPUT_HEIGHT + " × " +
+    INPUT_WIDTH + " × " +
+    CHANNELS
+);
+console.log(
+    "Rejection threshold:",
+    (CONFIDENCE_THRESHOLD * 100).toFixed(0) + "%"
+);
+console.log(
+    "Temperature:",
+    TEMPERATURE
+);
 console.log("Inference time unit: milliseconds (ms)");
 console.log("======================================");
 
