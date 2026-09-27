@@ -192,9 +192,18 @@
 
             /* Load TensorFlow.js model */
 
-            model =
-                await tf.loadLayersModel(
-                    MODEL_URL
+           
+
+console.log("STARTING MODEL LOAD...");
+
+model = await tf.loadLayersModel(MODEL_URL, {
+    strict: false
+});
+
+console.log("MODEL FINISHED LOADING");
+
+
+                    
                 );
 
 
