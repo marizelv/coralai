@@ -5,120 +5,491 @@
 
     <meta charset="UTF-8">
 
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="theme-color"
+        content="#0077b6"
+    >
+
+    <meta
+        name="description"
+        content="AI-powered coral species classification system"
+    >
 
     <title>Coral Species Classification AI</title>
 
 
-
-
-
-
-    <!-- =====================================================
+    <!-- =========================================================
          TENSORFLOW.JS CORE
-         ===================================================== -->
+         ========================================================= -->
 
-   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
 
-
-    <!-- =====================================================
-         TENSORFLOW.JS CPU BACKEND
-         ===================================================== -->
-
-   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-cpu"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-cpu"></script>
 
 
-    <!-- =====================================================
-         TFLITE WEB
-         ===================================================== -->
+    <!-- =========================================================
+         TENSORFLOW.JS TFLITE
+         ========================================================= -->
 
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite/dist/tf-tflite.min.js"></script>
 
 
+    <!-- =========================================================
+         STYLE
+         ========================================================= -->
+
     <style>
 
-        body {
-            font-family: Arial, sans-serif;
-            background: #f4f7fb;
-            text-align: center;
-            padding: 30px;
+        * {
+            box-sizing: border-box;
         }
+
+
+        body {
+
+            margin: 0;
+
+            padding: 20px;
+
+            font-family:
+                Arial,
+                Helvetica,
+                sans-serif;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #e8f7ff,
+                    #f4f7fb
+                );
+
+            min-height: 100vh;
+
+            display: flex;
+
+            justify-content: center;
+
+            align-items: center;
+
+        }
+
 
         .container {
-            max-width: 800px;
-            margin: auto;
+
+            width: 100%;
+
+            max-width: 850px;
+
             background: white;
+
             padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+
+            border-radius: 20px;
+
+            box-shadow:
+                0 10px 30px
+                rgba(0, 0, 0, 0.12);
+
+            text-align: center;
+
         }
+
 
         h1 {
+
+            margin-top: 0;
+
             color: #0077b6;
+
+            font-size: 32px;
+
         }
+
+
+        .subtitle {
+
+            color: #555;
+
+            margin-bottom: 25px;
+
+        }
+
+
+        /* =====================================================
+           STATUS
+           ===================================================== */
 
         #status {
+
             padding: 15px;
+
             margin: 20px 0;
-            border-radius: 8px;
+
+            border-radius: 10px;
+
             background: #fff3cd;
+
+            color: #856404;
+
+            font-weight: bold;
+
         }
+
 
         #status.success {
+
             background: #d4edda;
+
             color: #155724;
+
         }
+
 
         #status.error {
+
             background: #f8d7da;
+
             color: #721c24;
+
         }
 
-        input {
-            margin: 20px;
+
+        #status.loading {
+
+            background: #d9edf7;
+
+            color: #31708f;
+
         }
+
+
+        /* =====================================================
+           UPLOAD AREA
+           ===================================================== */
+
+        .upload-box {
+
+            border: 2px dashed #0077b6;
+
+            border-radius: 15px;
+
+            padding: 25px;
+
+            margin: 20px 0;
+
+            background: #f8fcff;
+
+        }
+
+
+        input[type="file"] {
+
+            width: 100%;
+
+            max-width: 500px;
+
+            padding: 10px;
+
+            cursor: pointer;
+
+        }
+
+
+        /* =====================================================
+           IMAGE
+           ===================================================== */
 
         #preview {
-            max-width: 400px;
-            max-height: 400px;
+
             display: none;
-            margin: 20px auto;
-            border-radius: 10px;
+
+            max-width: 100%;
+
+            width: auto;
+
+            max-height: 400px;
+
+            margin: 25px auto;
+
+            border-radius: 15px;
+
+            box-shadow:
+                0 5px 20px
+                rgba(0, 0, 0, 0.15);
+
         }
+
+
+        /* =====================================================
+           BUTTON
+           ===================================================== */
 
         button {
-            padding: 15px 30px;
+
+            width: 100%;
+
+            max-width: 450px;
+
+            padding: 16px 25px;
+
+            margin-top: 15px;
+
             background: #0077b6;
+
             color: white;
+
             border: none;
-            border-radius: 8px;
-            font-size: 16px;
+
+            border-radius: 10px;
+
+            font-size: 17px;
+
             font-weight: bold;
+
             cursor: pointer;
+
+            transition: 0.2s;
+
         }
+
+
+        button:hover:not(:disabled) {
+
+            background: #005f8f;
+
+            transform: translateY(-1px);
+
+        }
+
 
         button:disabled {
+
             background: #aaa;
+
             cursor: not-allowed;
+
         }
+
+
+        /* =====================================================
+           RESULT
+           ===================================================== */
 
         #result {
+
             margin-top: 30px;
-            padding: 20px;
+
+            padding: 25px;
+
             background: #f1f5f8;
-            border-radius: 10px;
+
+            border-radius: 15px;
+
+            min-height: 120px;
+
         }
+
+
+        .result-title {
+
+            color: #555;
+
+            font-size: 16px;
+
+            margin-bottom: 10px;
+
+        }
+
 
         .species {
-            font-size: 28px;
+
+            font-size: 30px;
+
             font-weight: bold;
+
             color: #0077b6;
+
+            margin: 10px 0;
+
         }
 
+
         .confidence {
+
             font-size: 20px;
+
             margin-top: 10px;
+
+        }
+
+
+        .accepted {
+
+            color: #198754;
+
+            font-weight: bold;
+
+        }
+
+
+        .unknown {
+
+            color: #dc3545;
+
+            font-weight: bold;
+
+        }
+
+
+        /* =====================================================
+           PROBABILITY LIST
+           ===================================================== */
+
+        #probabilityList {
+
+            margin-top: 20px;
+
+            text-align: left;
+
+        }
+
+
+        .probability-item {
+
+            margin: 8px 0;
+
+        }
+
+
+        .probability-label {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            font-size: 14px;
+
+            margin-bottom: 3px;
+
+        }
+
+
+        .bar-container {
+
+            width: 100%;
+
+            height: 10px;
+
+            background: #ddd;
+
+            border-radius: 10px;
+
+            overflow: hidden;
+
+        }
+
+
+        .bar {
+
+            height: 100%;
+
+            background: #0077b6;
+
+            border-radius: 10px;
+
+        }
+
+
+        /* =====================================================
+           MODEL INFORMATION
+           ===================================================== */
+
+        .model-info {
+
+            margin-top: 25px;
+
+            padding: 15px;
+
+            background: #eef8fc;
+
+            border-radius: 10px;
+
+            text-align: left;
+
+            font-size: 14px;
+
+        }
+
+
+        .model-info strong {
+
+            color: #0077b6;
+
+        }
+
+
+        /* =====================================================
+           FOOTER
+           ===================================================== */
+
+        .footer {
+
+            margin-top: 25px;
+
+            font-size: 13px;
+
+            color: #777;
+
+        }
+
+
+        /* =====================================================
+           MOBILE
+           ===================================================== */
+
+        @media (max-width: 600px) {
+
+            body {
+
+                padding: 10px;
+
+            }
+
+
+            .container {
+
+                padding: 20px;
+
+                border-radius: 15px;
+
+            }
+
+
+            h1 {
+
+                font-size: 25px;
+
+            }
+
+
+            .species {
+
+                font-size: 24px;
+
+            }
+
+
+            .confidence {
+
+                font-size: 18px;
+
+            }
+
         }
 
     </style>
@@ -131,44 +502,133 @@
 
 <div class="container">
 
-    <h1>Coral Species Classification AI</h1>
+
+    <!-- =====================================================
+         TITLE
+         ===================================================== -->
+
+    <h1>
+        Coral Species Classification AI
+    </h1>
 
 
-    <div id="status">
-        Loading AI model...
+    <div class="subtitle">
+
+        AI-powered coral species identification
+
     </div>
 
 
-    <input
-        type="file"
-        id="imageInput"
-        accept="image/*"
+    <!-- =====================================================
+         MODEL STATUS
+         ===================================================== -->
+
+    <div
+        id="status"
+        class="loading"
     >
 
+        Loading AI model...
 
-    <br>
+    </div>
 
+
+    <!-- =====================================================
+         UPLOAD
+         ===================================================== -->
+
+    <div class="upload-box">
+
+        <h3>
+            Upload Coral Image
+        </h3>
+
+        <input
+            type="file"
+            id="imageInput"
+            accept="image/*"
+        >
+
+    </div>
+
+
+    <!-- =====================================================
+         IMAGE PREVIEW
+         ===================================================== -->
 
     <img
         id="preview"
-        alt="Coral Image"
+        alt="Selected coral image"
     >
 
 
-    <br>
-
+    <!-- =====================================================
+         PREDICT BUTTON
+         ===================================================== -->
 
     <button
         id="predictButton"
         disabled
     >
+
         PREDICT CORAL SPECIES
+
     </button>
 
 
+    <!-- =====================================================
+         RESULT
+         ===================================================== -->
+
     <div id="result">
-        Upload a coral image.
+
+        Upload a coral image to begin.
+
     </div>
+
+
+    <!-- =====================================================
+         PROBABILITIES
+         ===================================================== -->
+
+    <div id="probabilityList"></div>
+
+
+    <!-- =====================================================
+         MODEL INFORMATION
+         ===================================================== -->
+
+    <div class="model-info">
+
+        <div>
+            <strong>Model:</strong>
+            model1.tflite
+        </div>
+
+        <div>
+            <strong>Framework:</strong>
+            TensorFlow Lite
+        </div>
+
+        <div>
+            <strong>Inference:</strong>
+            Client-side
+        </div>
+
+        <div>
+            <strong>Internet:</strong>
+            Required for CDN libraries
+        </div>
+
+    </div>
+
+
+    <div class="footer">
+
+        Coral Species Classification System
+
+    </div>
+
 
 </div>
 
@@ -176,66 +636,202 @@
 <script>
 
 
-/* ============================================================
-   MODEL FILES
-   ============================================================ */
+/* =============================================================
+   CONFIGURATION
+   ============================================================= */
 
+
+/*
+    TFLite model stored in the same GitHub/Vercel directory
+*/
 const MODEL_URL = "./model1.tflite";
 
+
+/*
+    Labels stored in the same directory
+*/
 const LABELS_URL = "./labels.json";
 
 
-/* ============================================================
-   VARIABLES
-   ============================================================ */
+/*
+    Confidence threshold
+
+    Example:
+    0.50 = 50%
+
+    If prediction confidence is below this value,
+    the system reports UNKNOWN.
+*/
+const CONFIDENCE_THRESHOLD = 0.50;
+
+
+/*
+    Number of classes to display
+*/
+const TOP_RESULTS = 5;
+
+
+
+/* =============================================================
+   GLOBAL VARIABLES
+   ============================================================= */
 
 let model = null;
 
 let labels = [];
 
+let modelReady = false;
 
-/* ============================================================
+let inputHeight = 256;
+
+let inputWidth = 256;
+
+
+
+/* =============================================================
    HTML ELEMENTS
-   ============================================================ */
+   ============================================================= */
 
-const status =
+const statusElement =
     document.getElementById("status");
+
 
 const imageInput =
     document.getElementById("imageInput");
 
+
 const preview =
     document.getElementById("preview");
 
+
 const predictButton =
     document.getElementById("predictButton");
+
 
 const result =
     document.getElementById("result");
 
 
-/* ============================================================
+const probabilityList =
+    document.getElementById("probabilityList");
+
+
+
+/* =============================================================
+   STATUS FUNCTION
+   ============================================================= */
+
+function setStatus(
+    message,
+    type = "loading"
+) {
+
+    statusElement.textContent =
+        message;
+
+    statusElement.className =
+        type;
+
+}
+
+
+
+/* =============================================================
    LOAD LABELS
-   ============================================================ */
+   ============================================================= */
 
 async function loadLabels() {
 
-    console.log("Loading labels...");
+    console.log(
+        "Loading labels:",
+        LABELS_URL
+    );
+
 
     const response =
-        await fetch(LABELS_URL);
+        await fetch(
+            LABELS_URL,
+            {
+                cache: "no-cache"
+            }
+        );
+
 
     if (!response.ok) {
 
         throw new Error(
-            "Unable to load labels.json. HTTP " +
+            "Unable to load labels.json. " +
+            "HTTP status: " +
             response.status
         );
 
     }
 
-    labels =
+
+    const data =
         await response.json();
+
+
+    /*
+        Support several possible formats:
+
+        1. ["ACER", "APAL", ...]
+        2. {"0":"ACER","1":"APAL",...}
+        3. {"labels":["ACER","APAL",...]}
+    */
+
+
+    if (Array.isArray(data)) {
+
+        labels = data;
+
+    }
+
+    else if (
+        data &&
+        Array.isArray(data.labels)
+    ) {
+
+        labels = data.labels;
+
+    }
+
+    else if (
+        data &&
+        typeof data === "object"
+    ) {
+
+        labels =
+            Object.keys(data)
+                .sort(
+                    (a, b) =>
+                        Number(a) -
+                        Number(b)
+                )
+                .map(
+                    key =>
+                        data[key]
+                );
+
+    }
+
+    else {
+
+        throw new Error(
+            "Unsupported labels.json format."
+        );
+
+    }
+
+
+    if (labels.length === 0) {
+
+        throw new Error(
+            "labels.json contains no labels."
+        );
+
+    }
+
 
     console.log(
         "Labels loaded:",
@@ -245,33 +841,130 @@ async function loadLabels() {
 }
 
 
-/* ============================================================
+
+/* =============================================================
+   DETERMINE MODEL INPUT SIZE
+   ============================================================= */
+
+function determineInputSize() {
+
+    /*
+        TFLite models loaded through tfjs-tflite
+        may expose inputShape differently depending
+        on the package version.
+
+        We first try common properties.
+    */
+
+
+    if (
+        model &&
+        model.inputShape &&
+        model.inputShape.length >= 4
+    ) {
+
+        inputHeight =
+            model.inputShape[
+                model.inputShape.length - 3
+            ];
+
+        inputWidth =
+            model.inputShape[
+                model.inputShape.length - 2
+            ];
+
+    }
+
+
+    else if (
+        model &&
+        model.inputs &&
+        model.inputs[0] &&
+        model.inputs[0].shape &&
+        model.inputs[0].shape.length >= 4
+    ) {
+
+        const shape =
+            model.inputs[0].shape;
+
+
+        inputHeight =
+            shape[1];
+
+
+        inputWidth =
+            shape[2];
+
+    }
+
+
+    /*
+        Fallback for your current CNN
+    */
+
+    if (
+        !Number.isFinite(inputHeight) ||
+        inputHeight <= 0
+    ) {
+
+        inputHeight = 256;
+
+    }
+
+
+    if (
+        !Number.isFinite(inputWidth) ||
+        inputWidth <= 0
+    ) {
+
+        inputWidth = 256;
+
+    }
+
+
+    console.log(
+        "Input dimensions:",
+        inputHeight,
+        "x",
+        inputWidth
+    );
+
+}
+
+
+
+/* =============================================================
    LOAD TFLITE MODEL
-   ============================================================ */
+   ============================================================= */
 
 async function loadModel() {
 
     try {
 
-        status.innerHTML =
-            "Loading AI model...";
-
-        console.log(
-            "================================="
-        );
-
-        console.log(
-            "CORAL AI TFLITE MODEL"
-        );
-
-        console.log(
-            "================================="
+        setStatus(
+            "Initializing TensorFlow.js...",
+            "loading"
         );
 
 
+        /*
+            Make sure CPU backend is available.
+        */
+
+        await tf.setBackend("cpu");
+
+        await tf.ready();
+
+
         console.log(
-            "TensorFlow.js:",
-            tf.version_core
+            "TensorFlow.js backend:",
+            tf.getBackend()
+        );
+
+
+        setStatus(
+            "Loading TensorFlow Lite model...",
+            "loading"
         );
 
 
@@ -281,53 +974,45 @@ async function loadModel() {
         );
 
 
-        /* ----------------------------------------------------
-           Set CPU backend
-           ---------------------------------------------------- */
+        /*
+            IMPORTANT:
 
-        await tf.setBackend("cpu");
+            TFLite models MUST use:
 
-        await tf.ready();
+                tflite.loadTFLiteModel()
 
+            NOT:
 
-        console.log(
-            "Backend:",
-            tf.getBackend()
-        );
+                tf.loadLayersModel()
+        */
 
 
-        /* ----------------------------------------------------
-           Check model URL
-           ---------------------------------------------------- */
-
-        const modelResponse =
-            await fetch(MODEL_URL);
-
-
-        console.log(
-            "TFLite HTTP status:",
-            modelResponse.status
-        );
-
-
-        if (!modelResponse.ok) {
+        if (
+            typeof tflite === "undefined"
+        ) {
 
             throw new Error(
-                "model1.tflite could not be loaded. HTTP " +
-                modelResponse.status
+                "TensorFlow Lite library was not loaded."
             );
 
         }
 
 
-        /* ----------------------------------------------------
-           Load TFLite model
-           ---------------------------------------------------- */
+        if (
+            typeof tflite.loadTFLiteModel !==
+            "function"
+        ) {
 
-        console.log(
-            "Starting TFLite model loading..."
-        );
+            throw new Error(
+                "tflite.loadTFLiteModel() is unavailable."
+            );
 
+        }
+
+
+        /*
+            Load the .tflite file
+        */
 
         model =
             await tflite.loadTFLiteModel(
@@ -336,48 +1021,34 @@ async function loadModel() {
 
 
         console.log(
-            "✓ TFLITE MODEL LOADED"
+            "TFLite model loaded:",
+            model
         );
 
 
-        /* ----------------------------------------------------
-           Model information
-           ---------------------------------------------------- */
+        /*
+            Determine input size
+        */
 
-        console.log(
-            "Input shape:",
-            model.inputs[0].shape
+        determineInputSize();
+
+
+        /*
+            Load labels
+        */
+
+        setStatus(
+            "Loading coral species labels...",
+            "loading"
         );
 
-
-        console.log(
-            "Input dtype:",
-            model.inputs[0].dtype
-        );
-
-
-        console.log(
-            "Output shape:",
-            model.outputs[0].shape
-        );
-
-
-        console.log(
-            "Output dtype:",
-            model.outputs[0].dtype
-        );
-
-
-        /* ----------------------------------------------------
-           Load labels
-           ---------------------------------------------------- */
 
         await loadLabels();
 
 
-        /* ----------------------------------------------------
-           Check number of labels
-           ---------------------------------------------------- */
+        /*
+            Verify class count
+        */
 
         console.log(
             "Number of labels:",
@@ -385,15 +1056,17 @@ async function loadModel() {
         );
 
 
-        /* ----------------------------------------------------
-           READY
-           ---------------------------------------------------- */
+        /*
+            Model ready
+        */
 
-        status.innerHTML =
-            "✓ AI Model Loaded Successfully";
+        modelReady = true;
 
-        status.className =
-            "success";
+
+        setStatus(
+            "✓ AI Model Loaded Successfully",
+            "success"
+        );
 
 
         predictButton.disabled =
@@ -401,64 +1074,158 @@ async function loadModel() {
 
 
         result.innerHTML =
-            "Upload a coral image.";
+            "Upload a coral image to begin.";
+
+
+        console.log(
+            "===================================="
+        );
+
+        console.log(
+            "MODEL READY"
+        );
+
+        console.log(
+            "Model:",
+            MODEL_URL
+        );
+
+        console.log(
+            "Input:",
+            inputHeight +
+            " x " +
+            inputWidth
+        );
+
+        console.log(
+            "Classes:",
+            labels.length
+        );
+
+        console.log(
+            "Backend:",
+            tf.getBackend()
+        );
+
+        console.log(
+            "===================================="
+        );
 
     }
-
 
     catch (error) {
 
-        console.error(
-            "================================="
-        );
+        modelReady = false;
+
 
         console.error(
-            "TFLITE MODEL ERROR:"
-        );
-
-        console.error(error);
-
-        console.error(
-            "================================="
+            "MODEL LOADING ERROR:",
+            error
         );
 
 
-        status.innerHTML =
-            "✗ Model Loading Error";
+        setStatus(
+            "✗ Model Loading Error",
+            "error"
+        );
 
 
-        status.className =
-            "error";
+        result.innerHTML = `
+
+            <div class="unknown">
+
+                Model could not be loaded.
+
+            </div>
+
+            <br>
+
+            <b>Error:</b>
+
+            <br>
+
+            ${escapeHTML(
+                error.message ||
+                String(error)
+            )}
+
+            <br><br>
+
+            Open the browser console
+            (F12 → Console) for details.
+
+        `;
 
 
-        result.innerHTML =
-            "<b>Model Error:</b><br>" +
-            error.message;
+        predictButton.disabled =
+            true;
 
     }
+
+
 
 }
 
 
-/* ============================================================
+
+/* =============================================================
    IMAGE PREVIEW
-   ============================================================ */
+   ============================================================= */
 
 imageInput.addEventListener(
     "change",
-    function() {
+    function () {
 
         const file =
             this.files[0];
 
 
         if (!file) {
+
+            preview.style.display =
+                "none";
+
             return;
+
+        }
+
+
+        if (
+            !file.type.startsWith("image/")
+        ) {
+
+            alert(
+                "Please select an image file."
+            );
+
+            this.value = "";
+
+            return;
+
+        }
+
+
+        /*
+            Release previous object URL
+        */
+
+        if (
+            preview.dataset.objectUrl
+        ) {
+
+            URL.revokeObjectURL(
+                preview.dataset.objectUrl
+            );
+
         }
 
 
         const url =
             URL.createObjectURL(file);
+
+
+        preview.dataset.objectUrl =
+            url;
 
 
         preview.src =
@@ -468,17 +1235,37 @@ imageInput.addEventListener(
         preview.style.display =
             "block";
 
+
+        result.innerHTML =
+            "Image selected. Click PREDICT CORAL SPECIES.";
+
+
+        probabilityList.innerHTML =
+            "";
+
     }
 );
 
 
-/* ============================================================
-   PREDICTION
-   ============================================================ */
+
+/* =============================================================
+   PREDICT BUTTON
+   ============================================================= */
 
 predictButton.addEventListener(
     "click",
-    async function() {
+    async function () {
+
+        if (!modelReady) {
+
+            alert(
+                "The AI model is not ready yet."
+            );
+
+            return;
+
+        }
+
 
         const file =
             imageInput.files[0];
@@ -487,10 +1274,11 @@ predictButton.addEventListener(
         if (!file) {
 
             alert(
-                "Please upload a coral image."
+                "Please upload a coral image first."
             );
 
             return;
+
         }
 
 
@@ -499,239 +1287,95 @@ predictButton.addEventListener(
 
 
         result.innerHTML =
-            "Analyzing image...";
+            "Analyzing coral image...";
+
+
+        probabilityList.innerHTML =
+            "";
 
 
         try {
 
-
-            /* ------------------------------------------------
-               Load image
-               ------------------------------------------------ */
+            /*
+                Load image
+            */
 
             const image =
                 await loadImage(file);
 
 
-            /* ------------------------------------------------
-               Get TFLite input shape
-               ------------------------------------------------ */
+            /*
+                Perform prediction
+            */
 
-            const inputShape =
-                model.inputs[0].shape;
-
-
-            console.log(
-                "Model input shape:",
-                inputShape
-            );
-
-
-            const height =
-                inputShape[1];
-
-
-            const width =
-                inputShape[2];
-
-
-            /* ------------------------------------------------
-               Convert image to tensor
-               ------------------------------------------------ */
-
-            let tensor =
-                tf.browser.fromPixels(image);
-
-
-            /* ------------------------------------------------
-               Resize
-               ------------------------------------------------ */
-
-            tensor =
-                tf.image.resizeBilinear(
-                    tensor,
-                    [height, width]
-                );
-
-
-            /* ------------------------------------------------
-               Convert to float
-               ------------------------------------------------ */
-
-            tensor =
-                tensor.toFloat();
+            const probabilities =
+                await predictImage(image);
 
 
             /*
-               IMPORTANT:
-
-               If your TFLite model expects
-               values from 0–255, keep this.
-
-               If your model expects
-               normalized 0–1 values,
-               use:
-
-               tensor = tensor.div(255.0);
-
-               We should verify your TFLite
-               input specification before
-               changing this.
+                Display results
             */
 
-
-            /* ------------------------------------------------
-               Add batch dimension
-               ------------------------------------------------ */
-
-            tensor =
-                tensor.expandDims(0);
-
-
-            console.log(
-                "Input tensor:",
-                tensor.shape
-            );
-
-
-            /* ------------------------------------------------
-               TFLITE PREDICTION
-               ------------------------------------------------ */
-
-            console.log(
-                "Running TFLite inference..."
-            );
-
-
-            const prediction =
-                model.predict(tensor);
-
-
-            console.log(
-                "Prediction tensor:",
-                prediction
-            );
-
-
-            const probabilities =
-                await prediction.data();
-
-
-            console.log(
-                "Probabilities:",
+            displayResults(
                 probabilities
             );
 
-
-            /* ------------------------------------------------
-               Find highest probability
-               ------------------------------------------------ */
-
-            let maxIndex = 0;
-
-
-            for (
-                let i = 1;
-                i < probabilities.length;
-                i++
-            ) {
-
-                if (
-                    probabilities[i] >
-                    probabilities[maxIndex]
-                ) {
-
-                    maxIndex =
-                        i;
-
-                }
-
-            }
-
-
-            const species =
-                labels[maxIndex] ||
-                "Unknown";
-
-
-            const confidence =
-                probabilities[maxIndex] *
-                100;
-
-
-            /* ------------------------------------------------
-               DISPLAY RESULT
-               ------------------------------------------------ */
-
-            result.innerHTML = `
-
-                <h3>Prediction Result</h3>
-
-                <div class="species">
-                    ${species}
-                </div>
-
-                <div class="confidence">
-
-                    Confidence:
-                    <b>
-                        ${confidence.toFixed(2)}%
-                    </b>
-
-                </div>
-
-            `;
-
-
-            /* ------------------------------------------------
-               CLEAN MEMORY
-               ------------------------------------------------ */
-
-            tensor.dispose();
-
-            prediction.dispose();
-
-
         }
-
 
         catch (error) {
 
             console.error(
-                "Prediction error:",
+                "PREDICTION ERROR:",
                 error
             );
 
 
-            result.innerHTML =
-                "<b>Prediction Error:</b><br>" +
-                error.message;
+            result.innerHTML = `
+
+                <div class="unknown">
+
+                    Prediction Error
+
+                </div>
+
+                <br>
+
+                ${escapeHTML(
+                    error.message ||
+                    String(error)
+                )}
+
+            `;
 
         }
 
+        finally {
 
-        predictButton.disabled =
-            false;
+            predictButton.disabled =
+                false;
+
+        }
 
     }
 );
 
 
-/* ============================================================
-   IMAGE LOADER
-   ============================================================ */
+
+/* =============================================================
+   LOAD IMAGE
+   ============================================================= */
 
 function loadImage(file) {
 
     return new Promise(
-        function(resolve, reject) {
+        function (resolve, reject) {
 
             const image =
                 new Image();
 
 
             image.onload =
-                function() {
+                function () {
 
                     resolve(image);
 
@@ -739,11 +1383,11 @@ function loadImage(file) {
 
 
             image.onerror =
-                function() {
+                function () {
 
                     reject(
                         new Error(
-                            "Unable to load image."
+                            "Unable to decode the selected image."
                         )
                     );
 
@@ -759,9 +1403,598 @@ function loadImage(file) {
 }
 
 
-/* ============================================================
+
+/* =============================================================
+   PREDICT IMAGE
+   ============================================================= */
+
+async function predictImage(image) {
+
+    let tensor = null;
+
+    let prediction = null;
+
+
+    try {
+
+        /*
+            Convert image to RGB tensor
+        */
+
+        tensor =
+            tf.browser.fromPixels(
+                image,
+                3
+            );
+
+
+        console.log(
+            "Original image tensor:",
+            tensor.shape
+        );
+
+
+        /*
+            Resize to model input
+        */
+
+        tensor =
+            tf.image.resizeBilinear(
+                tensor,
+                [
+                    inputHeight,
+                    inputWidth
+                ]
+            );
+
+
+        console.log(
+            "Resized tensor:",
+            tensor.shape
+        );
+
+
+        /*
+            Convert to FLOAT32
+        */
+
+        tensor =
+            tensor.toFloat();
+
+
+        /*
+            IMPORTANT
+
+            DO NOT divide by 255 here if
+            your TFLite model already contains
+            its own Rescaling layer.
+
+            This version intentionally keeps
+            pixel values in the 0–255 range.
+        */
+
+
+        /*
+            Add batch dimension
+
+            [H,W,3]
+
+            becomes
+
+            [1,H,W,3]
+        */
+
+        tensor =
+            tensor.expandDims(0);
+
+
+        console.log(
+            "Final input tensor:",
+            tensor.shape
+        );
+
+
+        /*
+            TFLite inference
+        */
+
+        prediction =
+            model.predict(
+                tensor
+            );
+
+
+        /*
+            Handle TensorFlow.js Tensor
+        */
+
+        let probabilities;
+
+
+        if (
+            prediction &&
+            typeof prediction.data ===
+            "function"
+        ) {
+
+            probabilities =
+                await prediction.data();
+
+        }
+
+
+        /*
+            Handle array output
+        */
+
+        else if (
+            Array.isArray(prediction)
+        ) {
+
+            if (
+                prediction[0] &&
+                typeof prediction[0].data ===
+                "function"
+            ) {
+
+                probabilities =
+                    await prediction[0].data();
+
+            }
+
+            else {
+
+                probabilities =
+                    prediction;
+
+            }
+
+        }
+
+
+        else {
+
+            throw new Error(
+                "The TFLite model returned an unsupported output format."
+            );
+
+        }
+
+
+        console.log(
+            "Prediction output:",
+            probabilities
+        );
+
+
+        return Array.from(
+            probabilities
+        );
+
+    }
+
+    finally {
+
+        /*
+            Release tensors
+        */
+
+        if (
+            tensor &&
+            typeof tensor.dispose ===
+            "function"
+        ) {
+
+            tensor.dispose();
+
+        }
+
+
+        if (
+            prediction &&
+            typeof prediction.dispose ===
+            "function"
+        ) {
+
+            prediction.dispose();
+
+        }
+
+
+        /*
+            If prediction is an array
+            of tensors, dispose them.
+        */
+
+        if (
+            Array.isArray(prediction)
+        ) {
+
+            prediction.forEach(
+                item => {
+
+                    if (
+                        item &&
+                        typeof item.dispose ===
+                        "function"
+                    ) {
+
+                        item.dispose();
+
+                    }
+
+                }
+            );
+
+        }
+
+    }
+
+}
+
+
+
+/* =============================================================
+   DISPLAY RESULTS
+   ============================================================= */
+
+function displayResults(
+    probabilities
+) {
+
+    if (
+        !probabilities ||
+        probabilities.length === 0
+    ) {
+
+        throw new Error(
+            "The model returned no prediction values."
+        );
+
+    }
+
+
+    /*
+        Find highest probability
+    */
+
+    let maxIndex = 0;
+
+
+    for (
+        let i = 1;
+        i < probabilities.length;
+        i++
+    ) {
+
+        if (
+            probabilities[i] >
+            probabilities[maxIndex]
+        ) {
+
+            maxIndex = i;
+
+        }
+
+    }
+
+
+    const highestProbability =
+        probabilities[maxIndex];
+
+
+    const confidence =
+        highestProbability * 100;
+
+
+    const predictedLabel =
+        labels[maxIndex] ||
+        "Unknown";
+
+
+    /*
+        UNKNOWN threshold
+    */
+
+    const accepted =
+        highestProbability >=
+        CONFIDENCE_THRESHOLD;
+
+
+    /*
+        Sort probabilities
+    */
+
+    const ranked =
+        probabilities
+            .map(
+                (probability, index) => ({
+
+                    index,
+
+                    probability,
+
+                    label:
+                        labels[index] ||
+                        "Class " +
+                        index
+
+                })
+            )
+            .sort(
+                (a, b) =>
+                    b.probability -
+                    a.probability
+            );
+
+
+    /*
+        Display main result
+    */
+
+    if (accepted) {
+
+        result.innerHTML = `
+
+            <div class="result-title">
+
+                Predicted Coral Species
+
+            </div>
+
+
+            <div class="species">
+
+                ${escapeHTML(
+                    predictedLabel
+                )}
+
+            </div>
+
+
+            <div class="confidence">
+
+                Confidence:
+
+                <b>
+
+                    ${confidence.toFixed(2)}%
+
+                </b>
+
+            </div>
+
+
+            <div class="accepted">
+
+                ✓ Prediction Accepted
+
+            </div>
+
+        `;
+
+    }
+
+    else {
+
+        result.innerHTML = `
+
+            <div class="result-title">
+
+                Classification Result
+
+            </div>
+
+
+            <div class="species unknown">
+
+                UNKNOWN
+
+            </div>
+
+
+            <div class="confidence">
+
+                Highest confidence:
+
+                <b>
+
+                    ${confidence.toFixed(2)}%
+
+                </b>
+
+            </div>
+
+
+            <div class="unknown">
+
+                ⚠ Confidence below
+                ${(CONFIDENCE_THRESHOLD * 100).toFixed(0)}%
+                threshold
+
+            </div>
+
+        `;
+
+    }
+
+
+    /*
+        Display top predictions
+    */
+
+    probabilityList.innerHTML =
+
+        "<h3>Top Predictions</h3>";
+
+
+    ranked
+        .slice(
+            0,
+            Math.min(
+                TOP_RESULTS,
+                ranked.length
+            )
+        )
+        .forEach(
+            item => {
+
+                const percentage =
+                    item.probability *
+                    100;
+
+
+                const div =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                div.className =
+                    "probability-item";
+
+
+                div.innerHTML = `
+
+                    <div
+                        class="probability-label"
+                    >
+
+                        <span>
+
+                            ${escapeHTML(
+                                item.label
+                            )}
+
+                        </span>
+
+                        <span>
+
+                            ${percentage.toFixed(2)}%
+
+                        </span>
+
+                    </div>
+
+
+                    <div
+                        class="bar-container"
+                    >
+
+                        <div
+                            class="bar"
+                            style="
+                                width:
+                                ${percentage}%;
+                            "
+                        ></div>
+
+                    </div>
+
+                `;
+
+
+                probabilityList.appendChild(
+                    div
+                );
+
+            }
+        );
+
+
+    console.log(
+        "Predicted class:",
+        predictedLabel
+    );
+
+
+    console.log(
+        "Confidence:",
+        confidence + "%"
+    );
+
+
+    console.log(
+        "Accepted:",
+        accepted
+    );
+
+}
+
+
+
+/* =============================================================
+   HTML ESCAPE
+   ============================================================= */
+
+function escapeHTML(value) {
+
+    return String(value)
+
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+
+        .replace(
+            /</g,
+            "&lt;"
+        )
+
+        .replace(
+            />/g,
+            "&gt;"
+        )
+
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+
+        .replace(
+            /'/g,
+            "&#039;"
+        );
+
+}
+
+
+
+/* =============================================================
    START APPLICATION
-   ============================================================ */
+   ============================================================= */
+
+console.log(
+    "===================================="
+);
+
+console.log(
+    "CORAL SPECIES CLASSIFICATION AI"
+);
+
+console.log(
+    "Starting application..."
+);
+
+console.log(
+    "Model:",
+    MODEL_URL
+);
+
+console.log(
+    "Labels:",
+    LABELS_URL
+);
+
+console.log(
+    "Confidence threshold:",
+    CONFIDENCE_THRESHOLD
+);
+
+console.log(
+    "===================================="
+);
+
 
 loadModel();
 
