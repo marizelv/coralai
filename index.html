@@ -17,7 +17,7 @@
 
     <meta
         name="description"
-        content="AI-powered Coral Species Classification System"
+        content="CNN-based Coral Species Classification with Temperature Scaling and Rejection"
     >
 
     <title>
@@ -206,7 +206,7 @@
 
 
         /* =====================================================
-           PREVIEW
+           IMAGE
            ===================================================== */
 
         #preview {
@@ -293,7 +293,7 @@
 
             border-radius: 15px;
 
-            min-height: 120px;
+            min-height: 140px;
 
         }
 
@@ -342,6 +342,17 @@
         }
 
 
+        .rejected {
+
+            color: #dc3545;
+
+            font-weight: bold;
+
+            margin-top: 10px;
+
+        }
+
+
         .unknown {
 
             color: #dc3545;
@@ -349,6 +360,27 @@
             font-weight: bold;
 
             margin-top: 10px;
+
+        }
+
+
+        /* =====================================================
+           REJECTION BOX
+           ===================================================== */
+
+        .rejection-box {
+
+            margin-top: 15px;
+
+            padding: 15px;
+
+            background: #fff3cd;
+
+            color: #856404;
+
+            border-radius: 10px;
+
+            font-size: 14px;
 
         }
 
@@ -422,10 +454,10 @@
 
 
         /* =====================================================
-           MODEL INFORMATION
+           SETTINGS
            ===================================================== */
 
-        .model-info {
+        .settings {
 
             margin-top: 25px;
 
@@ -444,7 +476,7 @@
         }
 
 
-        .model-info strong {
+        .settings strong {
 
             color: #0077b6;
 
@@ -452,7 +484,7 @@
 
 
         /* =====================================================
-           DEBUG INFORMATION
+           DEBUG
            ===================================================== */
 
         #debug {
@@ -561,13 +593,13 @@
 
     <div class="subtitle">
 
-        AI-powered coral species identification
+        CNN-based coral species classification
 
     </div>
 
 
     <!-- =====================================================
-         MODEL STATUS
+         STATUS
          ===================================================== -->
 
     <div
@@ -581,7 +613,7 @@
 
 
     <!-- =====================================================
-         UPLOAD
+         IMAGE UPLOAD
          ===================================================== -->
 
     <div class="upload-box">
@@ -600,7 +632,7 @@
 
 
     <!-- =====================================================
-         IMAGE PREVIEW
+         PREVIEW
          ===================================================== -->
 
     <img
@@ -610,7 +642,7 @@
 
 
     <!-- =====================================================
-         PREDICT BUTTON
+         PREDICT
          ===================================================== -->
 
     <button
@@ -635,46 +667,74 @@
 
 
     <!-- =====================================================
-         PROBABILITY LIST
+         TOP PREDICTIONS
          ===================================================== -->
 
     <div id="probabilityList"></div>
 
 
     <!-- =====================================================
-         MODEL INFORMATION
+         CNN SETTINGS
          ===================================================== -->
 
-    <div class="model-info">
+    <div class="settings">
 
         <div>
-            <strong>Model:</strong>
+
+            <strong>
+                Model:
+            </strong>
+
             model1.tflite
+
         </div>
 
-        <div>
-            <strong>Framework:</strong>
-            TensorFlow Lite
-        </div>
 
         <div>
-            <strong>Input:</strong>
+
+            <strong>
+                Input:
+            </strong>
+
             256 × 256 × 3
+
         </div>
 
-        <div>
-            <strong>Data Type:</strong>
-            Float32
-        </div>
 
         <div>
-            <strong>Inference:</strong>
-            Client-side
+
+            <strong>
+                Temperature:
+            </strong>
+
+            <span id="temperatureDisplay">
+                1.50
+            </span>
+
         </div>
 
+
         <div>
-            <strong>Confidence Threshold:</strong>
-            50%
+
+            <strong>
+                CNN Rejection Threshold:
+            </strong>
+
+            <span id="thresholdDisplay">
+                70%
+            </span>
+
+        </div>
+
+
+        <div>
+
+            <strong>
+                Decision:
+            </strong>
+
+            Temperature-scaled confidence
+
         </div>
 
     </div>
@@ -686,6 +746,10 @@
 
     <div id="debug"></div>
 
+
+    <!-- =====================================================
+         FOOTER
+         ===================================================== -->
 
     <div class="footer">
 
@@ -723,7 +787,7 @@ const LABELS_URL =
 
 
 /*
-    CNN input dimensions
+    CNN input
 */
 
 const INPUT_HEIGHT =
@@ -739,19 +803,85 @@ const CHANNELS =
 
 
 /*
-    Confidence threshold
+    ============================================================
+    TEMPERATURE SCALING
+    ============================================================
+
+    T > 1:
+
+        Softens probabilities
+
+    T = 1:
+
+        No temperature scaling
+
+    T < 1:
+
+        Makes probabilities sharper
+
+    IMPORTANT:
+
+    The final value should ideally be calibrated using your
+    validation dataset.
+
+    1.50 is an initial value.
 */
 
-const CONFIDENCE_THRESHOLD =
-    0.50;
+const TEMPERATURE =
+    1.50;
 
 
 /*
-    Number of top results
+    ============================================================
+    CNN REJECTION THRESHOLD
+    ============================================================
+
+    If the highest temperature-scaled probability is below
+    this value, the classifier rejects the prediction.
+
+    Example:
+
+        0.70 = 70%
+
+    0.65 = less strict
+
+    0.70 = moderate
+
+    0.80 = stricter
+
+    0.90 = very strict
+*/
+
+const CNN_THRESHOLD =
+    0.70;
+
+
+/*
+    Number of predictions displayed
 */
 
 const TOP_RESULTS =
     5;
+
+
+/*
+    Important:
+
+    Your current classifier appears to produce class
+    probabilities from its final softmax layer.
+
+    Therefore:
+
+        OUTPUT_TYPE = "probabilities"
+
+    If your TFLite model instead outputs raw logits,
+    change this to:
+
+        "logits"
+*/
+
+const OUTPUT_TYPE =
+    "probabilities";
 
 
 
@@ -768,7 +898,7 @@ let modelReady = false;
 
 
 /* =============================================================
-   ELEMENTS
+   HTML ELEMENTS
    ============================================================= */
 
 const statusElement =
@@ -813,9 +943,36 @@ const debugElement =
     );
 
 
+const temperatureDisplay =
+    document.getElementById(
+        "temperatureDisplay"
+    );
+
+
+const thresholdDisplay =
+    document.getElementById(
+        "thresholdDisplay"
+    );
+
+
 
 /* =============================================================
-   DEBUG FUNCTION
+   DISPLAY SETTINGS
+   ============================================================= */
+
+temperatureDisplay.textContent =
+    TEMPERATURE.toFixed(2);
+
+
+thresholdDisplay.textContent =
+    (
+        CNN_THRESHOLD * 100
+    ).toFixed(0) + "%";
+
+
+
+/* =============================================================
+   DEBUG
    ============================================================= */
 
 function debug(
@@ -924,8 +1081,7 @@ async function loadLabels() {
     ) {
 
         throw new Error(
-            "Could not load labels.json. " +
-            "HTTP " +
+            "Unable to load labels.json. HTTP " +
             response.status
         );
 
@@ -937,13 +1093,7 @@ async function loadLabels() {
 
 
     /*
-        Format 1:
-
-        [
-            "ACER",
-            "APAL",
-            ...
-        ]
+        Array format
     */
 
     if (
@@ -957,13 +1107,8 @@ async function loadLabels() {
 
 
     /*
-        Format 2:
-
         {
-            "labels": [
-                "ACER",
-                "APAL"
-            ]
+            labels: [...]
         }
     */
 
@@ -981,8 +1126,6 @@ async function loadLabels() {
 
 
     /*
-        Format 3:
-
         {
             "0": "ACER",
             "1": "APAL"
@@ -1031,20 +1174,20 @@ async function loadLabels() {
     ) {
 
         throw new Error(
-            "labels.json contains no labels."
+            "No labels found."
         );
 
     }
 
 
     debug(
-        "Labels loaded: " +
+        "Number of classes: " +
         labels.length
     );
 
 
     debug(
-        "Classes: " +
+        "Labels: " +
         labels.join(", ")
     );
 
@@ -1070,10 +1213,6 @@ async function loadModel() {
         );
 
 
-        /*
-            Check TensorFlow.js
-        */
-
         if (
             typeof tf ===
             "undefined"
@@ -1087,19 +1226,10 @@ async function loadModel() {
 
 
         debug(
-            "TensorFlow.js loaded."
-        );
-
-
-        debug(
-            "TensorFlow.js version: " +
+            "TensorFlow.js: " +
             tf.version.tfjs
         );
 
-
-        /*
-            CPU backend
-        */
 
         await tf.setBackend(
             "cpu"
@@ -1121,10 +1251,6 @@ async function loadModel() {
         );
 
 
-        /*
-            Check TFLite
-        */
-
         if (
             typeof tflite ===
             "undefined"
@@ -1144,21 +1270,17 @@ async function loadModel() {
         ) {
 
             throw new Error(
-                "TFLite model loader is unavailable."
+                "TFLite loader is unavailable."
             );
 
         }
 
 
         debug(
-            "Loading model: " +
+            "Model: " +
             MODEL_URL
         );
 
-
-        /*
-            LOAD MODEL
-        */
 
         model =
             await tflite.loadTFLiteModel(
@@ -1167,19 +1289,9 @@ async function loadModel() {
 
 
         debug(
-            "TFLite model loaded successfully."
+            "TFLite model loaded."
         );
 
-
-        console.log(
-            "TFLite model:",
-            model
-        );
-
-
-        /*
-            Load labels
-        */
 
         setStatus(
             "Loading coral species labels...",
@@ -1189,10 +1301,6 @@ async function loadModel() {
 
         await loadLabels();
 
-
-        /*
-            Model ready
-        */
 
         modelReady =
             true;
@@ -1215,7 +1323,6 @@ async function loadModel() {
         debug(
             "MODEL READY"
         );
-
 
     }
 
@@ -1310,10 +1417,6 @@ imageInput.addEventListener(
         }
 
 
-        /*
-            Release previous URL
-        */
-
         if (
             preview.dataset.url
         ) {
@@ -1404,7 +1507,7 @@ function loadImage(
 
                     reject(
                         new Error(
-                            "Unable to load the selected image."
+                            "Unable to load image."
                         )
                     );
 
@@ -1425,40 +1528,21 @@ function loadImage(
    CREATE MODEL INPUT
    ============================================================= */
 
-/*
-    IMPORTANT:
-
-    This function intentionally DOES NOT use:
-
-        tensor.toFloat()
-        tensor.expandDims()
-        tf.browser.fromPixels()
-        tf.image.resizeBilinear()
-
-    Instead:
-
-        Image
-          ↓
-        Canvas
-          ↓
-        ImageData
-          ↓
-        Float32Array
-          ↓
-        tf.tensor4d()
-
-    Final shape:
-
-        [1, 256, 256, 3]
-*/
-
 function createModelInput(
     image
 ) {
 
-    /* ---------------------------------------------------------
-       Canvas
-       --------------------------------------------------------- */
+    /*
+        Canvas preprocessing.
+
+        No:
+
+            toFloat()
+            expandDims()
+            fromPixels()
+            resizeBilinear()
+    */
+
 
     const canvas =
         document.createElement(
@@ -1489,15 +1573,15 @@ function createModelInput(
     ) {
 
         throw new Error(
-            "Unable to create Canvas 2D context."
+            "Unable to create Canvas context."
         );
 
     }
 
 
-    /* ---------------------------------------------------------
-       Draw image at model size
-       --------------------------------------------------------- */
+    /*
+        Resize image
+    */
 
     context.drawImage(
         image,
@@ -1508,9 +1592,9 @@ function createModelInput(
     );
 
 
-    /* ---------------------------------------------------------
-       Get RGB pixels
-       --------------------------------------------------------- */
+    /*
+        Read pixels
+    */
 
     const imageData =
         context.getImageData(
@@ -1526,22 +1610,8 @@ function createModelInput(
 
 
     /*
-        Canvas ImageData format:
-
-        R
-        G
-        B
-        A
-
-        We need:
-
-        R
-        G
-        B
-
-        Alpha is removed.
+        RGBA → RGB
     */
-
 
     const floatData =
         new Float32Array(
@@ -1551,62 +1621,31 @@ function createModelInput(
         );
 
 
-    let destinationIndex =
+    let j =
         0;
 
 
     for (
-        let sourceIndex = 0;
-        sourceIndex < pixels.length;
-        sourceIndex += 4
+        let i = 0;
+        i < pixels.length;
+        i += 4
     ) {
 
-        /*
-            Red
-        */
+        floatData[j++] =
+            pixels[i];
 
-        floatData[
-            destinationIndex++
-        ] =
-            pixels[
-                sourceIndex
-            ];
+        floatData[j++] =
+            pixels[i + 1];
 
-
-        /*
-            Green
-        */
-
-        floatData[
-            destinationIndex++
-        ] =
-            pixels[
-                sourceIndex + 1
-            ];
-
-
-        /*
-            Blue
-        */
-
-        floatData[
-            destinationIndex++
-        ] =
-            pixels[
-                sourceIndex + 2
-            ];
+        floatData[j++] =
+            pixels[i + 2];
 
     }
 
 
-    /* ---------------------------------------------------------
-       Create Tensor directly
-       
-       NO:
-           toFloat()
-           expandDims()
-       
-       --------------------------------------------------------- */
+    /*
+        Create [1,H,W,3]
+    */
 
     const inputTensor =
         tf.tensor4d(
@@ -1622,19 +1661,14 @@ function createModelInput(
 
 
     debug(
-        "Input tensor created."
-    );
-
-
-    debug(
-        "Shape: [" +
+        "Input shape: [" +
         inputTensor.shape.join(", ") +
         "]"
     );
 
 
     debug(
-        "Dtype: " +
+        "Input dtype: " +
         inputTensor.dtype
     );
 
@@ -1646,72 +1680,80 @@ function createModelInput(
 
 
 /* =============================================================
-   EXTRACT MODEL OUTPUT
+   SOFTMAX
    ============================================================= */
 
-async function extractPrediction(
-    prediction
+function softmax(
+    values
 ) {
 
     /*
-        Tensor output
+        Numerical stability:
+        subtract maximum before exp().
     */
 
-    if (
-        prediction &&
-        typeof prediction.data ===
-        "function"
+    let maxValue =
+        -Infinity;
+
+
+    for (
+        let i = 0;
+        i < values.length;
+        i++
     ) {
-
-        return Array.from(
-            await prediction.data()
-        );
-
-    }
-
-
-    /*
-        Array output
-    */
-
-    if (
-        Array.isArray(
-            prediction
-        )
-    ) {
-
-        /*
-            First output is Tensor
-        */
 
         if (
-            prediction.length > 0 &&
-            prediction[0] &&
-            typeof
-            prediction[0].data ===
-            "function"
+            values[i] >
+            maxValue
         ) {
 
-            return Array.from(
-                await prediction[0].data()
-            );
+            maxValue =
+                values[i];
 
         }
 
+    }
 
-        /*
-            Already numeric array
-        */
 
-        return Array.from(
-            prediction
+    const exponentials =
+        new Array(
+            values.length
         );
+
+
+    let sum =
+        0;
+
+
+    for (
+        let i = 0;
+        i < values.length;
+        i++
+    ) {
+
+        const value =
+            Math.exp(
+                values[i] -
+                maxValue
+            );
+
+
+        exponentials[i] =
+            value;
+
+
+        sum +=
+            value;
 
     }
 
 
-    throw new Error(
-        "The TFLite model returned an unsupported output format."
+    return exponentials.map(
+        function(value) {
+
+            return value / sum;
+
+        }
     );
 
 }
@@ -1719,15 +1761,166 @@ async function extractPrediction(
 
 
 /* =============================================================
-   PREDICT IMAGE
+   TEMPERATURE SCALING
    ============================================================= */
 
-async function predictImage(
-    image
+/*
+    Mathematical formulation:
+
+        p_i(T) =
+        exp(z_i / T)
+        -------------------
+        Σ_j exp(z_j / T)
+
+    where:
+
+        z_i = class logit
+        T   = temperature
+
+    If the TFLite model already outputs probabilities:
+
+        z_i = log(p_i)
+
+    Therefore:
+
+        p_i(T)
+        =
+        exp(log(p_i)/T)
+        ---------------------
+        Σ_j exp(log(p_j)/T)
+
+*/
+
+function applyTemperatureScaling(
+    output
 ) {
 
-    let inputTensor =
-        null;
+    if (
+        !output ||
+        output.length === 0
+    ) {
+
+        throw new Error(
+            "Empty model output."
+        );
+
+    }
+
+
+    /*
+        Case 1:
+        Model outputs logits.
+    */
+
+    if (
+        OUTPUT_TYPE ===
+        "logits"
+    ) {
+
+        const scaledLogits =
+            output.map(
+                function(value) {
+
+                    return (
+                        value /
+                        TEMPERATURE
+                    );
+
+                }
+            );
+
+
+        return softmax(
+            scaledLogits
+        );
+
+    }
+
+
+    /*
+        Case 2:
+        Model outputs probabilities.
+    */
+
+    if (
+        OUTPUT_TYPE ===
+        "probabilities"
+    ) {
+
+        /*
+            Prevent log(0).
+        */
+
+        const EPSILON =
+            1e-7;
+
+
+        const logits =
+            output.map(
+                function(probability) {
+
+                    /*
+                        Clamp probability.
+                    */
+
+                    const p =
+                        Math.max(
+                            EPSILON,
+                            Math.min(
+                                1 - EPSILON,
+                                probability
+                            )
+                        );
+
+
+                    /*
+                        Recover relative logits
+                        from probabilities.
+                    */
+
+                    return Math.log(
+                        p
+                    );
+
+                }
+            );
+
+
+        const scaledLogits =
+            logits.map(
+                function(logit) {
+
+                    return (
+                        logit /
+                        TEMPERATURE
+                    );
+
+                }
+            );
+
+
+        return softmax(
+            scaledLogits
+        );
+
+    }
+
+
+    throw new Error(
+        "Invalid OUTPUT_TYPE."
+    );
+
+}
+
+
+
+/* =============================================================
+   MODEL PREDICTION
+   ============================================================= */
+
+async function runModel(
+    inputTensor
+) {
 
     let prediction =
         null;
@@ -1736,48 +1929,7 @@ async function predictImage(
     try {
 
         debug(
-            "Starting image preprocessing..."
-        );
-
-
-        /* =====================================================
-           CREATE INPUT
-           ===================================================== */
-
-        inputTensor =
-            createModelInput(
-                image
-            );
-
-
-        /*
-            Important:
-
-            Input is already:
-
-                [1, 256, 256, 3]
-
-            float32
-
-            Therefore we DO NOT call:
-
-                expandDims()
-                toFloat()
-                resizeBilinear()
-        */
-
-
-        debug(
-            "Input preparation complete."
-        );
-
-
-        /* =====================================================
-           MODEL PREDICTION
-           ===================================================== */
-
-        debug(
-            "Running TFLite inference..."
+            "Running CNN inference..."
         );
 
 
@@ -1787,64 +1939,93 @@ async function predictImage(
             );
 
 
-        debug(
-            "TFLite inference completed."
-        );
-
-
         console.log(
-            "Raw prediction:",
+            "Raw CNN output:",
             prediction
         );
 
 
-        /* =====================================================
-           EXTRACT OUTPUT
-           ===================================================== */
+        let output;
 
-        const probabilities =
-            await extractPrediction(
+
+        /*
+            Tensor output
+        */
+
+        if (
+            prediction &&
+            typeof prediction.data ===
+            "function"
+        ) {
+
+            output =
+                Array.from(
+                    await prediction.data()
+                );
+
+        }
+
+
+        /*
+            Array output
+        */
+
+        else if (
+            Array.isArray(
                 prediction
+            )
+        ) {
+
+            if (
+                prediction.length > 0 &&
+                prediction[0] &&
+                typeof
+                prediction[0].data ===
+                "function"
+            ) {
+
+                output =
+                    Array.from(
+                        await prediction[0].data()
+                    );
+
+            }
+
+            else {
+
+                output =
+                    Array.from(
+                        prediction
+                    );
+
+            }
+
+        }
+
+        else {
+
+            throw new Error(
+                "Unsupported CNN output format."
             );
+
+        }
 
 
         debug(
-            "Output values: " +
-            probabilities.length
+            "Raw output classes: " +
+            output.length
         );
 
 
-        console.log(
-            "Probabilities:",
-            probabilities
-        );
-
-
-        return probabilities;
+        return output;
 
     }
 
     finally {
 
-        /* =====================================================
-           CLEANUP INPUT
-           ===================================================== */
-
-        if (
-            inputTensor &&
-            typeof
-            inputTensor.dispose ===
-            "function"
-        ) {
-
-            inputTensor.dispose();
-
-        }
-
-
-        /* =====================================================
-           CLEANUP OUTPUT
-           ===================================================== */
+        /*
+            Cleanup.
+        */
 
         if (
             prediction &&
@@ -1890,6 +2071,103 @@ async function predictImage(
 
 
 /* =============================================================
+   PREDICT IMAGE
+   ============================================================= */
+
+async function predictImage(
+    image
+) {
+
+    let inputTensor =
+        null;
+
+
+    try {
+
+        debug(
+            "Preparing image..."
+        );
+
+
+        /*
+            Create:
+
+            [1,256,256,3]
+
+            float32
+        */
+
+        inputTensor =
+            createModelInput(
+                image
+            );
+
+
+        /*
+            CNN inference
+        */
+
+        const rawOutput =
+            await runModel(
+                inputTensor
+            );
+
+
+        /*
+            Temperature scaling
+        */
+
+        debug(
+            "Applying temperature scaling..."
+        );
+
+
+        const calibratedProbabilities =
+            applyTemperatureScaling(
+                rawOutput
+            );
+
+
+        console.log(
+            "Temperature:",
+            TEMPERATURE
+        );
+
+
+        console.log(
+            "Calibrated probabilities:",
+            calibratedProbabilities
+        );
+
+
+        /*
+            Return calibrated result
+        */
+
+        return calibratedProbabilities;
+
+    }
+
+    finally {
+
+        if (
+            inputTensor &&
+            typeof
+            inputTensor.dispose ===
+            "function"
+        ) {
+
+            inputTensor.dispose();
+
+        }
+
+    }
+
+}
+
+
+
+/* =============================================================
    DISPLAY RESULTS
    ============================================================= */
 
@@ -1903,14 +2181,14 @@ function displayResults(
     ) {
 
         throw new Error(
-            "The model returned no prediction values."
+            "No calibrated probabilities were returned."
         );
 
     }
 
 
     /* =========================================================
-       FIND HIGHEST CLASS
+       FIND MAXIMUM
        ========================================================= */
 
     let maxIndex =
@@ -1936,14 +2214,14 @@ function displayResults(
     }
 
 
-    const maxProbability =
+    const calibratedConfidence =
         probabilities[
             maxIndex
         ];
 
 
-    const confidence =
-        maxProbability *
+    const confidencePercent =
+        calibratedConfidence *
         100;
 
 
@@ -1955,16 +2233,163 @@ function displayResults(
 
 
     /* =========================================================
-       THRESHOLD
+       CNN REJECTION
        ========================================================= */
 
     const accepted =
-        maxProbability >=
-        CONFIDENCE_THRESHOLD;
+        calibratedConfidence >=
+        CNN_THRESHOLD;
+
+
+    console.log(
+        "Predicted class:",
+        predictedLabel
+    );
+
+
+    console.log(
+        "Calibrated confidence:",
+        confidencePercent.toFixed(2) +
+        "%"
+    );
+
+
+    console.log(
+        "CNN threshold:",
+        CNN_THRESHOLD * 100 +
+        "%"
+    );
+
+
+    console.log(
+        "Decision:",
+        accepted ?
+        "ACCEPT" :
+        "REJECT"
+    );
 
 
     /* =========================================================
-       RANK RESULTS
+       ACCEPT
+       ========================================================= */
+
+    if (
+        accepted
+    ) {
+
+        result.innerHTML = `
+
+            <div class="result-title">
+
+                CNN Prediction
+
+            </div>
+
+
+            <div class="species">
+
+                ${escapeHTML(
+                    predictedLabel
+                )}
+
+            </div>
+
+
+            <div class="confidence">
+
+                Temperature-Scaled Confidence:
+
+                <b>
+
+                    ${confidencePercent.toFixed(2)}%
+
+                </b>
+
+            </div>
+
+
+            <div class="accepted">
+
+                ✓ ACCEPTED
+
+            </div>
+
+
+            <div class="rejection-box">
+
+                Confidence is above the
+                ${(CNN_THRESHOLD * 100).toFixed(0)}%
+                CNN rejection threshold.
+
+            </div>
+
+        `;
+
+    }
+
+
+    /* =========================================================
+       REJECT
+       ========================================================= */
+
+    else {
+
+        result.innerHTML = `
+
+            <div class="result-title">
+
+                CNN Classification Result
+
+            </div>
+
+
+            <div class="species unknown">
+
+                UNKNOWN
+
+            </div>
+
+
+            <div class="confidence">
+
+                Highest Calibrated Confidence:
+
+                <b>
+
+                    ${confidencePercent.toFixed(2)}%
+
+                </b>
+
+            </div>
+
+
+            <div class="rejected">
+
+                ✗ REJECTED
+
+            </div>
+
+
+            <div class="rejection-box">
+
+                The CNN confidence is below the
+                ${(CNN_THRESHOLD * 100).toFixed(0)}%
+                rejection threshold.
+
+                <br><br>
+
+                The image should not be assigned
+                to a coral species.
+
+            </div>
+
+        `;
+
+    }
+
+
+    /* =========================================================
+       RANK PREDICTIONS
        ========================================================= */
 
     const ranked =
@@ -2005,107 +2430,14 @@ function displayResults(
 
 
     /* =========================================================
-       MAIN RESULT
-       ========================================================= */
-
-    if (
-        accepted
-    ) {
-
-        result.innerHTML = `
-
-            <div class="result-title">
-
-                Predicted Coral Species
-
-            </div>
-
-
-            <div class="species">
-
-                ${escapeHTML(
-                    predictedLabel
-                )}
-
-            </div>
-
-
-            <div class="confidence">
-
-                Confidence:
-
-                <b>
-
-                    ${confidence.toFixed(2)}%
-
-                </b>
-
-            </div>
-
-
-            <div class="accepted">
-
-                ✓ Prediction Accepted
-
-            </div>
-
-        `;
-
-    }
-
-    else {
-
-        result.innerHTML = `
-
-            <div class="result-title">
-
-                Classification Result
-
-            </div>
-
-
-            <div class="species unknown">
-
-                UNKNOWN
-
-            </div>
-
-
-            <div class="confidence">
-
-                Highest Confidence:
-
-                <b>
-
-                    ${confidence.toFixed(2)}%
-
-                </b>
-
-            </div>
-
-
-            <div class="unknown">
-
-                ⚠ Confidence below
-                ${(CONFIDENCE_THRESHOLD * 100).toFixed(0)}%
-                threshold
-
-            </div>
-
-        `;
-
-    }
-
-
-    /* =========================================================
-       TOP PREDICTIONS
+       DISPLAY TOP PREDICTIONS
        ========================================================= */
 
     probabilityList.innerHTML = `
 
         <h3 class="probability-title">
 
-            Top Predictions
+            Temperature-Scaled Predictions
 
         </h3>
 
@@ -2194,49 +2526,155 @@ function displayResults(
 
 
     /* =========================================================
-       CONSOLE
+       DEBUG
        ========================================================= */
 
-    console.log(
-        "======================================"
+    debug(
+        "Temperature: " +
+        TEMPERATURE
     );
 
 
-    console.log(
-        "CORAL PREDICTION"
-    );
-
-
-    console.log(
-        "Class:",
-        predictedLabel
-    );
-
-
-    console.log(
-        "Index:",
-        maxIndex
-    );
-
-
-    console.log(
-        "Confidence:",
-        confidence.toFixed(2) +
+    debug(
+        "CNN threshold: " +
+        (
+            CNN_THRESHOLD *
+            100
+        ).toFixed(1) +
         "%"
     );
 
 
-    console.log(
-        "Accepted:",
-        accepted
+    debug(
+        "Maximum calibrated confidence: " +
+        confidencePercent.toFixed(2) +
+        "%"
     );
 
 
-    console.log(
-        "======================================"
+    debug(
+        "Decision: " +
+        (
+            accepted ?
+            "ACCEPT" :
+            "REJECT"
+        )
     );
 
 }
+
+
+
+/* =============================================================
+   PREDICT BUTTON
+   ============================================================= */
+
+predictButton.addEventListener(
+    "click",
+    async function() {
+
+        if (
+            !modelReady
+        ) {
+
+            alert(
+                "The AI model is not ready."
+            );
+
+            return;
+
+        }
+
+
+        const file =
+            imageInput.files[0];
+
+
+        if (
+            !file
+        ) {
+
+            alert(
+                "Please upload a coral image."
+            );
+
+            return;
+
+        }
+
+
+        predictButton.disabled =
+            true;
+
+
+        result.innerHTML =
+            "Analyzing image...";
+
+
+        probabilityList.innerHTML =
+            "";
+
+
+        debugElement.textContent =
+            "";
+
+
+        try {
+
+            const image =
+                await loadImage(
+                    file
+                );
+
+
+            const probabilities =
+                await predictImage(
+                    image
+                );
+
+
+            displayResults(
+                probabilities
+            );
+
+        }
+
+        catch (error) {
+
+            console.error(
+                "PREDICTION ERROR:",
+                error
+            );
+
+
+            result.innerHTML = `
+
+                <div class="unknown">
+
+                    Prediction Error
+
+                </div>
+
+                <br>
+
+                ${escapeHTML(
+                    error.message ||
+                    String(error)
+                )}
+
+            `;
+
+        }
+
+        finally {
+
+            predictButton.disabled =
+                false;
+
+        }
+
+    }
+);
 
 
 
@@ -2248,44 +2686,37 @@ console.log(
     "======================================"
 );
 
-
 console.log(
     "CORAL SPECIES CLASSIFICATION AI"
 );
 
-
 console.log(
-    "Application starting..."
+    "Temperature Scaling + CNN Rejection"
 );
 
+console.log(
+    "======================================"
+);
 
 console.log(
     "Model:",
     MODEL_URL
 );
 
-
 console.log(
-    "Labels:",
-    LABELS_URL
+    "Temperature:",
+    TEMPERATURE
 );
 
-
 console.log(
-    "Input:",
-    INPUT_HEIGHT +
-    " × " +
-    INPUT_WIDTH +
-    " × " +
-    CHANNELS
+    "CNN Threshold:",
+    CNN_THRESHOLD
 );
 
-
 console.log(
-    "Confidence threshold:",
-    CONFIDENCE_THRESHOLD
+    "Output Type:",
+    OUTPUT_TYPE
 );
-
 
 console.log(
     "======================================"
@@ -2293,7 +2724,6 @@ console.log(
 
 
 loadModel();
-
 
 </script>
 
