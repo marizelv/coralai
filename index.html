@@ -673,9 +673,105 @@ faissInput.addEventListener("change", async () => {
  * performed offline; this JSON is the Top-1 result exported
  * from the FAISS retrieval stage.
  */
+function normalizeSpeciesName(name) {
+    return String(name || "")
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+        .replace(/[“”]/g, '"')
+        .replace(/[‘’]/g, "'");
+}
+
+/*
+ * FAISS knowledge JSON supported formats:
+ *
+ * 1. Current coral_species.json:
+ * [
+ *   {
+ *     "species_name": "Acropora cervicornis",
+ *     "description": "...",
+ *     "sources": ["..."]
+ *   }
+ * ]
+ *
+ * 2. Object/keyed formats from previous versions are also supported.
+ *
+ * IMPORTANT:
+ * The CNN label is the FULL species name, so matching is performed
+ * against the JSON "species_name" field.
+ */
 function getFAISSTop1(speciesName) {
     if (!faissKnowledge) return null;
 
+    const query = normalizeSpeciesName(speciesName);
+
+    console.log("FAISS lookup:", speciesName);
+
+    // =========================================================
+    // CURRENT FORMAT: ARRAY OF SPECIES RECORDS
+    // =========================================================
+    if (Array.isArray(faissKnowledge)) {
+
+        let item = faissKnowledge.find(record => {
+            if (!record || !record.species_name) return false;
+
+            return normalizeSpeciesName(record.species_name) === query;
+        });
+
+        // Fallback: tolerant partial match
+        if (!item) {
+            item = faissKnowledge.find(record => {
+                if (!record || !record.species_name) return false;
+
+                const name = normalizeSpeciesName(record.species_name);
+
+                return name.includes(query) || query.includes(name);
+            });
+        }
+
+        if (item) {
+            console.log(
+                "FAISS MATCH:",
+                item.species_name
+            );
+
+            return {
+                speciesName:
+                    item.species_name ||
+                    speciesName,
+
+                description:
+                    item.description ||
+                    item.Description ||
+                    item.text ||
+                    item.content ||
+                    "",
+
+                score:
+                    item.score ??
+                    item.similarity ??
+                    null,
+
+                sources:
+                    item.sources ||
+                    item.Sources ||
+                    item.source ||
+                    item["Sources Used"] ||
+                    []
+            };
+        }
+
+        console.warn(
+            "No FAISS record found for:",
+            speciesName
+        );
+
+        return null;
+    }
+
+    // =========================================================
+    // OBJECT FORMAT
+    // =========================================================
     const containers = [
         faissKnowledge,
         faissKnowledge.results,
@@ -683,14 +779,16 @@ function getFAISSTop1(speciesName) {
     ].filter(Boolean);
 
     for (const container of containers) {
+
         if (typeof container !== "object") continue;
 
         let item = container[speciesName];
 
         if (item === undefined) {
             const key = Object.keys(container).find(
-                k => k.toLowerCase() === speciesName.toLowerCase()
+                k => normalizeSpeciesName(k) === query
             );
+
             if (key) item = container[key];
         }
 
@@ -700,23 +798,30 @@ function getFAISSTop1(speciesName) {
 
         if (item && typeof item === "object") {
             return {
+                speciesName:
+                    item.species_name ||
+                    item.speciesName ||
+                    speciesName,
+
                 description:
                     item.description ||
                     item.Description ||
                     item.text ||
                     item.content ||
                     "",
+
                 score:
                     item.score ??
                     item.similarity ??
                     item.distance ??
                     null,
+
                 sources:
                     item.sources ||
                     item.Sources ||
                     item.source ||
                     item["Sources Used"] ||
-                    ""
+                    []
             };
         }
     }
