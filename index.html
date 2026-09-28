@@ -1,620 +1,852 @@
-# ============================================================
-# CORAL SPECIES AI CLASSIFIER
-# PYTHON VERSION ALIGNED WITH index.html
-#
-# Matches the HTML prediction logic:
-#   Input              : 256 x 256 RGB
-#   Normalization      : /255.0
-#   Model              : TFLite
-#   Output handling    : probabilities OR logits
-#   Temperature        : 2.0 for logits
-#   Threshold          : 95%
-#   Top-K              : 5
-#   Decision            : ACCEPT / REJECTED / UNKNOWN
-#
-# IMPORTANT:
-# This is Python/Colab code that mirrors the prediction logic
-# of index.html. Python cannot be placed directly inside an
-# index.html browser page; the web page itself uses JavaScript.
-# ============================================================
-
-import io
-import json
-import time
-import numpy as np
-import tensorflow as tf
-
-from PIL import Image
-from google.colab import files
-from IPython.display import display, clear_output
-
-
-# ============================================================
-# SETTINGS - SAME AS index.html
-# ============================================================
-
-INPUT_HEIGHT = 256
-INPUT_WIDTH = 256
-CHANNELS = 3
-
-CONFIDENCE_THRESHOLD = 0.95
-TEMPERATURE = 2.0
-TOP_RESULTS = 5
-
-REJECTION_CLASS = "REJECTED / UNKNOWN"
-
-
-# ============================================================
-# 1. UPLOAD IMAGE
-# ============================================================
-
-clear_output(wait=True)
-
-print("Upload coral image, TFLite model, and labels.json")
-
-uploaded = files.upload()
-
-if not uploaded:
-    raise RuntimeError("No files were uploaded.")
-
-
-# ============================================================
-# 2. IDENTIFY UPLOADED FILES
-# ============================================================
-
-image_file = None
-model_file = None
-labels_file = None
-
-for filename, content in uploaded.items():
-
-    lower_name = filename.lower()
-
-    if lower_name.endswith(
-        (".jpg", ".jpeg", ".png", ".bmp", ".webp")
-    ):
-        if image_file is None:
-            image_file = filename
-
-    elif lower_name.endswith(".tflite"):
-        if model_file is None:
-            model_file = filename
-
-    elif lower_name.endswith(".json"):
-        if labels_file is None:
-            labels_file = filename
-
-
-if image_file is None:
-    raise ValueError("Please upload an image file.")
-
-if model_file is None:
-    raise ValueError("Please upload a .tflite model.")
-
-if labels_file is None:
-    raise ValueError("Please upload labels.json.")
-
-
-# ============================================================
-# 3. LOAD LABELS
-# Same supported formats as index.html
-# ============================================================
-
-with open(
-    labels_file,
-    "r",
-    encoding="utf-8"
-) as f:
-
-    data = json.load(f)
-
-
-if isinstance(data, list):
-
-    labels = data
-
-elif (
-    isinstance(data, dict)
-    and isinstance(data.get("labels"), list)
-):
-
-    labels = data["labels"]
-
-elif isinstance(data, dict):
-
-    try:
-
-        labels = [
-            data[key]
-            for key in sorted(
-                data.keys(),
-                key=lambda x: int(x)
-            )
-        ]
-
-    except (ValueError, TypeError):
-
-        labels = list(data.values())
-
-else:
-
-    raise ValueError(
-        "Unsupported labels.json format."
-    )
-
-
-if len(labels) == 0:
-    raise ValueError(
-        "labels.json contains no labels."
-    )
-
-
-# ============================================================
-# 4. LOAD TFLITE MODEL
-# ============================================================
-
-interpreter = tf.lite.Interpreter(
-    model_path=model_file
-)
-
-interpreter.allocate_tensors()
-
-input_details = (
-    interpreter.get_input_details()
-)
-
-output_details = (
-    interpreter.get_output_details()
-)
-
-
-# ============================================================
-# 5. LOAD AND PREPROCESS IMAGE
-# Same as index.html
-# ============================================================
-
-img = Image.open(
-    io.BytesIO(
-        uploaded[image_file]
-    )
-).convert("RGB")
-
-img = img.resize(
-    (INPUT_WIDTH, INPUT_HEIGHT),
-    Image.Resampling.BILINEAR
-)
-
-img_array = np.asarray(
-    img,
-    dtype=np.float32
-)
-
-# SAME NORMALIZATION AS index.html
-img_array = img_array / 255.0
-
-# Shape: 1 x 256 x 256 x 3
-img_array = np.expand_dims(
-    img_array,
-    axis=0
-)
-
-
-# ============================================================
-# 6. PREPARE TFLITE INPUT
-# ============================================================
-
-input_info = input_details[0]
-
-input_dtype = input_info["dtype"]
-
-input_shape = tuple(
-    input_info["shape"]
-)
-
-if input_dtype == np.float32:
-
-    model_input = (
-        img_array.astype(np.float32)
-    )
-
-elif input_dtype in (np.int8, np.uint8):
-
-    scale, zero_point = (
-        input_info["quantization"]
-    )
-
-    if scale == 0:
-
-        raise ValueError(
-            "Invalid input quantization scale."
-        )
-
-    model_input = (
-        img_array / scale
-    ) + zero_point
-
-    if input_dtype == np.uint8:
-
-        model_input = np.clip(
-            model_input,
-            0,
-            255
-        )
-
-    else:
-
-        model_input = np.clip(
-            model_input,
-            -128,
-            127
-        )
-
-    model_input = (
-        model_input.astype(input_dtype)
-    )
-
-else:
-
-    raise TypeError(
-        f"Unsupported input dtype: {input_dtype}"
-    )
-
-
-# ============================================================
-# 7. TFLITE INFERENCE
-# Same measurement concept as index.html:
-# only model inference is timed.
-# ============================================================
-
-interpreter.set_tensor(
-    input_info["index"],
-    model_input
-)
-
-inference_start = time.perf_counter()
-
-interpreter.invoke()
-
-inference_end = time.perf_counter()
-
-inference_time_ms = (
-    inference_end - inference_start
-) * 1000.0
-
-
-# ============================================================
-# 8. GET RAW OUTPUT
-# ============================================================
-
-output_info = output_details[0]
-
-raw_output = interpreter.get_tensor(
-    output_info["index"]
-)
-
-raw_output = np.asarray(
-    raw_output,
-    dtype=np.float32
-).reshape(-1)
-
-
-# ============================================================
-# 9. DEQUANTIZE OUTPUT IF NECESSARY
-# ============================================================
-
-if output_info["dtype"] in (
-    np.int8,
-    np.uint8
-):
-
-    scale, zero_point = (
-        output_info["quantization"]
-    )
-
-    if scale != 0:
-
-        raw_output = (
-            raw_output - zero_point
-        ) * scale
-
-
-# ============================================================
-# 10. CHECK WHETHER OUTPUT IS ALREADY PROBABILITIES
-# EXACT CONCEPT USED BY index.html
-# ============================================================
-
-def is_probability_distribution(values):
-
-    if (
-        not isinstance(values, np.ndarray)
-        or values.size == 0
-    ):
-        return False
-
-    all_in_range = bool(
-        np.all(
-            np.isfinite(values)
-        )
-        and
-        np.all(values >= 0)
-        and
-        np.all(values <= 1)
-    )
-
-    if not all_in_range:
-        return False
-
-    total = float(
-        np.sum(values)
-    )
-
-    return abs(
-        total - 1.0
-    ) < 0.001
-
-
-# ============================================================
-# 11. TEMPERATURE SOFTMAX
-# EXACTLY:
-# logits / temperature -> softmax
-# ============================================================
-
-def softmax_with_temperature(
-    logits,
-    temperature
-):
-
-    if (
-        not np.isfinite(temperature)
-        or temperature <= 0
-    ):
-
-        raise ValueError(
-            "Temperature must be greater than zero."
-        )
-
-    logits = np.asarray(
-        logits,
-        dtype=np.float64
-    )
-
-    if not np.all(
-        np.isfinite(logits)
-    ):
-
-        raise ValueError(
-            "CNN output contains "
-            "non-finite values."
-        )
-
-    scaled = (
-        logits / temperature
-    )
-
-    max_value = np.max(
-        scaled
-    )
-
-    exp_values = np.exp(
-        scaled - max_value
-    )
-
-    total = np.sum(
-        exp_values
-    )
-
-    if (
-        not np.isfinite(total)
-        or total <= 0
-    ):
-
-        raise ValueError(
-            "Unable to calculate Softmax."
-        )
-
-    return (
-        exp_values / total
-    ).astype(np.float32)
-
-
-# ============================================================
-# 12. CONVERT OUTPUT TO PROBABILITIES
-# SAME LOGIC AS index.html
-# ============================================================
-
-if is_probability_distribution(
-    raw_output
-):
-
-    probabilities = (
-        raw_output.astype(
-            np.float32
-        )
-    )
-
-else:
-
-    probabilities = (
-        softmax_with_temperature(
-            raw_output,
-            TEMPERATURE
-        )
-    )
-
-
-# ============================================================
-# 13. CHECK OUTPUT / LABEL COUNT
-# ============================================================
-
-if len(probabilities) != len(labels):
-
-    raise ValueError(
-        "Mismatch between model outputs "
-        "and labels.json.\n"
-        f"Model outputs: {len(probabilities)}\n"
-        f"Labels: {len(labels)}"
-    )
-
-
-# ============================================================
-# 14. FIND TOP PREDICTION
-# ============================================================
-
-predicted_index = int(
-    np.argmax(
-        probabilities
-    )
-)
-
-cnn_confidence = float(
-    probabilities[
-        predicted_index
-    ]
-)
-
-cnn_predicted_class = str(
-    labels[
-        predicted_index
-    ]
-)
-
-
-# ============================================================
-# 15. ACCEPT / REJECT
-# SAME AS index.html
-# ============================================================
-
-if (
-    cnn_confidence
-    >=
-    CONFIDENCE_THRESHOLD
-):
-
-    decision = "ACCEPT"
-
-    final_prediction = (
-        cnn_predicted_class
-    )
-
-else:
-
-    decision = "REJECT"
-
-    final_prediction = (
-        REJECTION_CLASS
-    )
-
-
-# ============================================================
-# 16. TOP-5
-# ============================================================
-
-sorted_indices = np.argsort(
-    probabilities
-)[::-1]
-
-top_k = min(
-    TOP_RESULTS,
-    len(probabilities)
-)
-
-top5 = []
-
-for rank in range(top_k):
-
-    index = int(
-        sorted_indices[rank]
-    )
-
-    score = float(
-        probabilities[index]
-    )
-
-    top5.append(
-        (
-            rank + 1,
-            str(labels[index]),
-            score
-        )
-    )
-
-
-# ============================================================
-# 17. DISPLAY RESULT
-# ============================================================
-
-print()
-print("=" * 60)
-print("CORAL SPECIES CLASSIFICATION AI")
-print("=" * 60)
-
-print(
-    f"\nPredicted Class : "
-    f"{cnn_predicted_class}"
-)
-
-print(
-    f"CNN Confidence  : "
-    f"{cnn_confidence * 100:.2f}%"
-)
-
-print(
-    f"Threshold        : "
-    f"{CONFIDENCE_THRESHOLD * 100:.2f}%"
-)
-
-print(
-    f"Decision         : "
-    f"{decision}"
-)
-
-print(
-    f"Final Prediction : "
-    f"{final_prediction}"
-)
-
-print(
-    f"Inference Time   : "
-    f"{inference_time_ms:.2f} ms"
-)
-
-
-print()
-print("-" * 60)
-print("TOP-5 PREDICTIONS")
-print("-" * 60)
-
-for rank, name, score in top5:
-
-    print(
-        f"{rank}. "
-        f"{name:<30} "
-        f"{score * 100:>7.2f}%"
-    )
-
-
-print()
-print("=" * 60)
-
-if decision == "ACCEPT":
-
-    print("✓ ACCEPTED")
-    print(
-        f"Class: {cnn_predicted_class}"
-    )
-
-else:
-
-    print("✗ REJECTED / UNKNOWN")
-    print(
-        f"Top CNN Class: "
-        f"{cnn_predicted_class}"
-    )
-
-    print(
-        f"Reason: confidence "
-        f"is below "
-        f"{CONFIDENCE_THRESHOLD * 100:.0f}%."
-    )
-
-print("=" * 60)
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0066a8">
+<title>Coral Species AI Classifier</title>
+
+<!-- TensorFlow.js + TFLite runtime -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite@0.0.1-alpha.10/dist/tf-tflite.min.js"></script>
+
+<style>
+*{box-sizing:border-box}
+body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f5f9fc;
+    color:#222;
+}
+.coral-app{width:100%;max-width:1500px;margin:auto;padding:14px}
+.coral-header{
+    background:linear-gradient(90deg,#0066a8,#008dcc,#0066a8);
+    color:white;
+    padding:18px 25px;
+    border-radius:12px 12px 0 0;
+    text-align:center;
+    box-shadow:0 3px 10px rgba(0,0,0,.15);
+}
+.coral-header-title{font-size:30px;font-weight:bold}
+.coral-header-subtitle{font-size:15px;margin-top:5px;opacity:.95}
+
+.main-content{
+    display:grid;
+    grid-template-columns:32% 34% 34%;
+    gap:10px;
+    align-items:start;
+    margin-top:10px;
+}
+.panel{
+    background:white;
+    border-radius:10px;
+    border:1px solid #dce5ec;
+    box-shadow:0 2px 8px rgba(0,0,0,.08);
+    overflow:hidden;
+}
+.panel-header{
+    background:linear-gradient(90deg,#0878c9,#087db5);
+    color:white;
+    font-size:17px;
+    font-weight:bold;
+    padding:10px 14px;
+}
+.upload-card{
+    margin:10px;
+    padding:10px;
+    border:1px solid #cbdceb;
+    border-radius:10px;
+    background:#fff;
+}
+.upload-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+}
+.upload-title{font-weight:bold;font-size:14px}
+.upload-help{color:#777;font-size:11px;margin-top:3px}
+input[type=file]{display:none}
+.file-btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-width:125px;
+    height:38px;
+    padding:0 12px;
+    border-radius:6px;
+    border:0;
+    background:#0878c9;
+    color:white;
+    font-weight:bold;
+    cursor:pointer;
+}
+.file-btn.model{background:#6b7280}
+.file-btn.labels{background:#168548}
+.file-name{
+    margin-top:6px;
+    font-size:11px;
+    color:#1764a0;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+.settings{
+    padding:10px;
+    border-top:1px solid #e1e9ef;
+    margin-top:8px;
+}
+.settings-title{font-weight:bold;font-size:16px;margin-bottom:10px}
+.setting-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin:9px 0;
+}
+.setting-label{width:175px;font-size:13px}
+input[type=range]{flex:1}
+.threshold-number{
+    width:65px;
+    padding:5px;
+    border:1px solid #ccd8e0;
+    border-radius:5px;
+    text-align:center;
+}
+select{
+    padding:6px;
+    border:1px solid #ccd8e0;
+    border-radius:5px;
+}
+.action-row{padding:10px;display:flex;gap:8px}
+.action-btn{
+    flex:1;
+    height:45px;
+    border:0;
+    border-radius:7px;
+    cursor:pointer;
+    font-size:15px;
+    font-weight:bold;
+}
+.predict{background:#168548;color:white}
+.reset{background:#e9eef2;color:#333}
+.action-btn:disabled{opacity:.55;cursor:not-allowed}
+
+.image-container{padding:12px;background:white}
+.image-frame{
+    width:100%;
+    min-height:390px;
+    border-radius:10px;
+    background:#eef5f9;
+    border:1px solid #d5e1e8;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+}
+.image-frame img{
+    max-width:100%;
+    max-height:390px;
+    object-fit:contain;
+    border-radius:8px;
+}
+.placeholder{text-align:center;color:#777}
+.placeholder-icon{font-size:50px;margin-bottom:8px}
+
+.status{
+    text-align:center;
+    padding:9px;
+    font-size:13px;
+    min-height:34px;
+}
+.status.info{color:#1764a0}
+.status.success{color:#138a43}
+.status.error{color:#c62828}
+
+.result-panel{min-height:390px}
+.result-body{padding:0 0 10px}
+.accept-box,.reject-box{
+    border-radius:12px;
+    padding:18px;
+    text-align:center;
+    margin:12px;
+}
+.accept-box{background:#e8f7e9;border:1px solid #9bd79f}
+.reject-box{background:#fff0f0;border:1px solid #e5a0a0}
+.decision{font-size:30px;font-weight:bold;margin-bottom:8px}
+.class-card{
+    margin:12px;
+    padding:16px;
+    border-radius:10px;
+    background:#fffaf0;
+    border:1px solid #eee1c7;
+}
+.class-title{color:#333;font-size:13px;font-weight:bold}
+.class-name{font-size:23px;font-weight:bold;margin-top:5px;word-break:break-word}
+.confidence-card{
+    margin:12px;
+    padding:15px;
+    border-radius:10px;
+    background:#f8fbfe;
+    border:1px solid #dbe8f1;
+}
+.confidence-value{
+    font-size:31px;
+    font-weight:bold;
+    text-align:center;
+    margin:8px;
+}
+.confidence-bar{
+    height:13px;
+    background:#dfe8ee;
+    border-radius:10px;
+    overflow:hidden;
+}
+.confidence-fill{height:100%;border-radius:10px}
+.threshold-note{text-align:center;margin-top:8px;font-size:13px;color:#666}
+
+.top5-panel{margin-top:12px}
+.top5-header{
+    background:linear-gradient(90deg,#6944c5,#8059d8);
+    color:white;
+    padding:10px 15px;
+    font-size:17px;
+    font-weight:bold;
+}
+.top5-grid{
+    display:flex;
+    flex-wrap:wrap;
+    padding:5px;
+}
+.top5-card{
+    flex:1 1 120px;
+    background:white;
+    border:1px solid #d8e1e8;
+    border-radius:8px;
+    padding:10px;
+    text-align:center;
+    margin:5px;
+}
+.rank{
+    display:inline-block;
+    background:#0878c9;
+    color:white;
+    width:25px;
+    height:25px;
+    line-height:25px;
+    border-radius:50%;
+    font-weight:bold;
+    margin-bottom:5px;
+}
+.top5-name{
+    font-size:12px;
+    font-weight:bold;
+    min-height:35px;
+    word-break:break-word;
+}
+.top5-score{font-size:15px;font-weight:bold;margin-top:5px}
+.top5-bar{
+    height:8px;
+    background:#e3eaf0;
+    border-radius:10px;
+    margin-top:7px;
+    overflow:hidden;
+}
+.top5-fill{height:100%;background:#168ee5;border-radius:10px}
+
+.footer{
+    margin-top:12px;
+    padding:10px;
+    text-align:center;
+    color:#1764a0;
+    background:#e5f5ff;
+    border-radius:10px;
+    font-size:13px;
+}
+
+.hidden{display:none}
+.error-box{
+    margin:12px;
+    padding:12px;
+    border-radius:8px;
+    background:#fff0f0;
+    border:1px solid #e5a0a0;
+    color:#a32020;
+    font-size:13px;
+}
+
+@media(max-width:950px){
+    .main-content{grid-template-columns:1fr}
+    .coral-header-title{font-size:24px}
+    .image-frame{min-height:300px}
+}
+</style>
+</head>
+
+<body>
+<div class="coral-app">
+
+    <header class="coral-header">
+        <div class="coral-header-title">🪸 Coral Species AI Classifier</div>
+        <div class="coral-header-subtitle">
+            Deep Learning CNN-Based Coral Species Classification
+        </div>
+    </header>
+
+    <div class="main-content">
+
+        <!-- LEFT: UPLOAD + SETTINGS -->
+        <section class="panel">
+            <div class="panel-header">⬆ 1. Upload Files</div>
+
+            <div class="upload-card">
+                <div class="upload-row">
+                    <div>
+                        <div class="upload-title">🖼️ Upload Image</div>
+                        <div class="upload-help">JPG, PNG, JPEG, WEBP</div>
+                    </div>
+                    <label class="file-btn" for="imageInput">Choose Image</label>
+                    <input id="imageInput" type="file" accept="image/*">
+                </div>
+                <div id="imageFileName" class="file-name"></div>
+            </div>
+
+            <div class="upload-card">
+                <div class="upload-row">
+                    <div>
+                        <div class="upload-title">🧠 Upload Model</div>
+                        <div class="upload-help">TFLite (.tflite)</div>
+                    </div>
+                    <label class="file-btn model" for="modelInput">Choose Model</label>
+                    <input id="modelInput" type="file" accept=".tflite">
+                </div>
+                <div id="modelFileName" class="file-name"></div>
+            </div>
+
+            <div class="upload-card">
+                <div class="upload-row">
+                    <div>
+                        <div class="upload-title">📄 Upload Labels</div>
+                        <div class="upload-help">Text file (.txt)</div>
+                    </div>
+                    <label class="file-btn labels" for="labelsInput">Choose Labels</label>
+                    <input id="labelsInput" type="file" accept=".txt,text/plain">
+                </div>
+                <div id="labelsFileName" class="file-name"></div>
+            </div>
+
+            <div class="settings">
+                <div class="settings-title">⚙️ 2. Settings</div>
+
+                <div class="setting-row">
+                    <div class="setting-label">Confidence Threshold</div>
+                    <input id="thresholdSlider" type="range"
+                           min="0.50" max="0.99" step="0.01" value="0.90">
+                    <input id="thresholdNumber" class="threshold-number"
+                           type="number" min="0" max="1" step="0.01" value="0.90">
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-label">Top-K Predictions</div>
+                    <select id="topK">
+                        <option value="3">3</option>
+                        <option value="5" selected>5</option>
+                        <option value="10">10</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="action-row">
+                <button id="predictButton" class="action-btn predict">▶ Predict</button>
+                <button id="resetButton" class="action-btn reset">⟳ Reset</button>
+            </div>
+        </section>
+
+        <!-- CENTER: IMAGE -->
+        <section class="panel">
+            <div class="panel-header">🖼️ Image Preview</div>
+            <div class="image-container">
+                <div id="imageFrame" class="image-frame">
+                    <div class="placeholder">
+                        <div class="placeholder-icon">🖼️</div>
+                        <div>Upload a coral image</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- RIGHT: RESULT -->
+        <section class="panel result-panel">
+            <div class="panel-header">📊 Prediction Result</div>
+            <div id="resultBody" class="result-body">
+                <div class="placeholder" style="padding:80px 20px">
+                    <div class="placeholder-icon">🔬</div>
+                    <div>Prediction result will appear here</div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <div id="status" class="status info">
+        Upload your image, CNN model, and labels.txt.
+    </div>
+
+    <div class="footer">
+        🪸 Coral Species AI Classifier &nbsp; | &nbsp;
+        CNN-Based Deep Learning &nbsp; | &nbsp;
+        256 × 256 RGB
+    </div>
+</div>
+
+<script>
+/* ============================================================
+   CORAL SPECIES AI CLASSIFIER
+   Browser version of the supplied Python GUI.
+
+   Pipeline:
+   Image -> 256x256 RGB -> /255 -> TFLite -> probabilities/logits
+   -> softmax when needed -> confidence -> threshold -> Top-K
+   ============================================================ */
+
+const IMAGE_SIZE = 256;
+let CONFIDENCE_THRESHOLD = 0.90;
+let TOP_K = 5;
+const REJECTION_CLASS = "REJECTED / UNKNOWN";
+
+let imageFile = null;
+let modelFile = null;
+let labelsFile = null;
+let imageURL = null;
+let tfliteModel = null;
+let labels = [];
+
+/* ---------- DOM ---------- */
+const imageInput = document.getElementById("imageInput");
+const modelInput = document.getElementById("modelInput");
+const labelsInput = document.getElementById("labelsInput");
+
+const imageFrame = document.getElementById("imageFrame");
+const resultBody = document.getElementById("resultBody");
+const statusBox = document.getElementById("status");
+
+const thresholdSlider = document.getElementById("thresholdSlider");
+const thresholdNumber = document.getElementById("thresholdNumber");
+const topKSelect = document.getElementById("topK");
+
+const predictButton = document.getElementById("predictButton");
+const resetButton = document.getElementById("resetButton");
+
+/* ---------- Status ---------- */
+function setStatus(message, type = "info") {
+    statusBox.textContent = message;
+    statusBox.className = "status " + type;
+}
+
+/* ---------- File selection ---------- */
+imageInput.addEventListener("change", () => {
+    imageFile = imageInput.files[0] || null;
+
+    if (!imageFile) return;
+
+    document.getElementById("imageFileName").textContent =
+        "✓ " + imageFile.name;
+
+    if (imageURL) URL.revokeObjectURL(imageURL);
+    imageURL = URL.createObjectURL(imageFile);
+
+    imageFrame.innerHTML =
+        `<img src="${imageURL}" alt="Selected coral image">`;
+
+    setStatus("✓ Image loaded", "success");
+});
+
+modelInput.addEventListener("change", () => {
+    modelFile = modelInput.files[0] || null;
+
+    if (!modelFile) return;
+
+    document.getElementById("modelFileName").textContent =
+        "✓ " + modelFile.name;
+
+    tfliteModel = null;
+    setStatus("✓ CNN model selected", "success");
+});
+
+labelsInput.addEventListener("change", async () => {
+    labelsFile = labelsInput.files[0] || null;
+
+    if (!labelsFile) return;
+
+    document.getElementById("labelsFileName").textContent =
+        "✓ " + labelsFile.name;
+
+    try {
+        const text = await labelsFile.text();
+
+        labels = text
+            .split(/\r?\n/)
+            .map(x => x.trim())
+            .filter(Boolean);
+
+        setStatus(`✓ ${labels.length} class labels loaded`, "success");
+    } catch (error) {
+        labels = [];
+        setStatus("Labels error: " + error.message, "error");
+    }
+});
+
+/* ---------- Settings ---------- */
+thresholdSlider.addEventListener("input", () => {
+    CONFIDENCE_THRESHOLD = parseFloat(thresholdSlider.value);
+    thresholdNumber.value = CONFIDENCE_THRESHOLD.toFixed(2);
+});
+
+thresholdNumber.addEventListener("input", () => {
+    let value = parseFloat(thresholdNumber.value);
+
+    if (!Number.isFinite(value)) return;
+
+    value = Math.max(0, Math.min(1, value));
+    CONFIDENCE_THRESHOLD = value;
+    thresholdSlider.value = value;
+});
+
+topKSelect.addEventListener("change", () => {
+    TOP_K = parseInt(topKSelect.value, 10);
+});
+
+/* ---------- Utilities ---------- */
+function softmax(values) {
+    const max = Math.max(...values);
+    const exps = values.map(v => Math.exp(v - max));
+    const sum = exps.reduce((a, b) => a + b, 0);
+    return exps.map(v => v / sum);
+}
+
+function isProbabilityDistribution(values) {
+    if (!values || values.length === 0) return false;
+
+    const validRange = values.every(
+        v => Number.isFinite(v) && v >= 0 && v <= 1
+    );
+
+    if (!validRange) return false;
+
+    const sum = values.reduce((a, b) => a + b, 0);
+
+    return Math.abs(sum - 1.0) < 0.01;
+}
+
+function topKPredictions(probabilities, k) {
+    return probabilities
+        .map((score, index) => ({ index, score }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, Math.min(k, probabilities.length));
+}
+
+function escapeHTML(value) {
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+/* ---------- Load TFLite model ---------- */
+async function loadModel() {
+    if (!modelFile) {
+        throw new Error("Please upload the TFLite model.");
+    }
+
+    if (tfliteModel) return tfliteModel;
+
+    setStatus("Loading CNN model...", "info");
+
+    const modelURL = URL.createObjectURL(modelFile);
+
+    try {
+        tfliteModel = await tflite.loadTFLiteModel(modelURL);
+        return tfliteModel;
+    } finally {
+        URL.revokeObjectURL(modelURL);
+    }
+}
+
+/* ---------- Image tensor ---------- */
+async function createInputTensor() {
+    if (!imageFile) {
+        throw new Error("Please upload an image.");
+    }
+
+    const bitmap = await createImageBitmap(imageFile);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = IMAGE_SIZE;
+    canvas.height = IMAGE_SIZE;
+
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+    /* Bilinear resize is the normal canvas resize behavior. */
+    ctx.drawImage(bitmap, 0, 0, IMAGE_SIZE, IMAGE_SIZE);
+
+    const imageTensor = tf.browser.fromPixels(canvas);
+
+    /* Same RGB normalization as the supplied Python code:
+       img_array /= 255.0 */
+    const inputTensor = tf.tidy(() => {
+        return tf.div(
+            tf.expandDims(imageTensor, 0),
+            255.0
+        );
+    });
+
+    imageTensor.dispose();
+    bitmap.close();
+
+    return inputTensor;
+}
+
+/* ---------- Prediction ---------- */
+async function predictCoral() {
+    if (!imageFile) {
+        throw new Error("Please upload an image.");
+    }
+
+    if (!modelFile) {
+        throw new Error("Please upload the TFLite model.");
+    }
+
+    if (!labelsFile || labels.length === 0) {
+        throw new Error("Please upload labels.txt.");
+    }
+
+    const model = await loadModel();
+    const inputTensor = await createInputTensor();
+
+    let outputTensor = null;
+    let probabilities = null;
+
+    try {
+        /*
+         * TFLite model inference.
+         * The supplied Python code uses:
+         * interpreter.invoke()
+         */
+        const start = performance.now();
+
+        outputTensor = model.predict(inputTensor);
+
+        /*
+         * Ensure the browser has materialized the output before
+         * measuring the inference operation.
+         */
+        const outputData = Array.from(await outputTensor.data());
+
+        const end = performance.now();
+        const inferenceTime = end - start;
+
+        let output = outputData.map(Number);
+
+        /*
+         * Match the supplied Python logic:
+         * If output already behaves like probabilities, use it.
+         * Otherwise apply Softmax.
+         */
+        if (isProbabilityDistribution(output)) {
+            probabilities = output;
+        } else {
+            probabilities = softmax(output);
+        }
+
+        if (probabilities.length !== labels.length) {
+            throw new Error(
+                `Mismatch between model outputs (${probabilities.length}) ` +
+                `and labels (${labels.length}).`
+            );
+        }
+
+        const ranked = topKPredictions(probabilities, TOP_K);
+        const predicted = ranked[0];
+
+        const predictedClass = labels[predicted.index];
+        const confidence = predicted.score;
+
+        const accepted = confidence >= CONFIDENCE_THRESHOLD;
+
+        return {
+            predictedClass,
+            confidence,
+            accepted,
+            finalPrediction: accepted
+                ? predictedClass
+                : REJECTION_CLASS,
+            inferenceTime,
+            top5: ranked
+        };
+
+    } finally {
+        inputTensor.dispose();
+
+        if (outputTensor && typeof outputTensor.dispose === "function") {
+            outputTensor.dispose();
+        }
+    }
+}
+
+/* ---------- Display result ---------- */
+function displayPrediction(result) {
+    const confidencePercent = result.confidence * 100;
+
+    const color = result.accepted ? "#138a43" : "#c62828";
+    const background = result.accepted ? "#e8f7e9" : "#ffebee";
+    const border = result.accepted ? "#9bd79f" : "#e5a0a0";
+    const icon = result.accepted ? "✓" : "✕";
+    const message = result.accepted
+        ? "Coral detected with high confidence"
+        : "Confidence below threshold";
+
+    const topCards = result.top5.map(item => {
+        const percent = item.score * 100;
+        const name =
+            item.index < labels.length
+                ? labels[item.index]
+                : `Class ${item.index}`;
+
+        return `
+            <div class="top5-card">
+                <div class="rank">${item.index === result.top5[0].index
+                    ? 1
+                    : result.top5.findIndex(x => x.index === item.index) + 1}</div>
+                <div class="top5-name">${escapeHTML(name)}</div>
+                <div class="top5-score">${percent.toFixed(2)}%</div>
+                <div class="top5-bar">
+                    <div class="top5-fill"
+                         style="width:${Math.min(percent,100)}%"></div>
+                </div>
+            </div>
+        `;
+    }).join("");
+
+    resultBody.innerHTML = `
+        <div class="${result.accepted ? "accept-box" : "reject-box"}"
+             style="background:${background};border-color:${border}">
+            <div class="decision" style="color:${color}">
+                ${icon} ${result.accepted ? "ACCEPT" : "REJECT"}
+            </div>
+            <div>${message}</div>
+        </div>
+
+        <div class="class-card">
+            <div class="class-title">🪸 Predicted Class</div>
+            <div class="class-name">
+                ${escapeHTML(result.finalPrediction)}
+            </div>
+        </div>
+
+        <div class="confidence-card">
+            <div class="class-title">🎯 CNN Confidence</div>
+
+            <div class="confidence-value" style="color:${color}">
+                ${confidencePercent.toFixed(2)}%
+            </div>
+
+            <div class="confidence-bar">
+                <div class="confidence-fill"
+                     style="width:${Math.min(confidencePercent,100)}%;
+                            background:${color}">
+                </div>
+            </div>
+
+            <div class="threshold-note">
+                Threshold: ${(CONFIDENCE_THRESHOLD * 100).toFixed(2)}%
+            </div>
+
+            <div class="threshold-note">
+                Inference Time: ${result.inferenceTime.toFixed(2)} ms
+            </div>
+        </div>
+
+        <div class="panel top5-panel">
+            <div class="top5-header">☷ Top-${TOP_K} Predictions</div>
+            <div class="top5-grid">${topCards}</div>
+        </div>
+    `;
+}
+
+/* ---------- Predict button ---------- */
+predictButton.addEventListener("click", async () => {
+    try {
+        predictButton.disabled = true;
+        setStatus("🔍 Analyzing image...", "info");
+
+        const result = await predictCoral();
+
+        displayPrediction(result);
+
+        setStatus("✓ Prediction completed", "success");
+
+    } catch (error) {
+        console.error(error);
+
+        resultBody.innerHTML = `
+            <div class="error-box">
+                <b>Prediction Error</b><br><br>
+                ${escapeHTML(error.message)}
+            </div>
+        `;
+
+        setStatus("Prediction failed", "error");
+
+    } finally {
+        predictButton.disabled = false;
+    }
+});
+
+/* ---------- Reset ---------- */
+resetButton.addEventListener("click", () => {
+    imageFile = null;
+    modelFile = null;
+    labelsFile = null;
+    labels = [];
+    tfliteModel = null;
+
+    imageInput.value = "";
+    modelInput.value = "";
+    labelsInput.value = "";
+
+    document.getElementById("imageFileName").textContent = "";
+    document.getElementById("modelFileName").textContent = "";
+    document.getElementById("labelsFileName").textContent = "";
+
+    if (imageURL) {
+        URL.revokeObjectURL(imageURL);
+        imageURL = null;
+    }
+
+    imageFrame.innerHTML = `
+        <div class="placeholder">
+            <div class="placeholder-icon">🖼️</div>
+            <div>Upload a coral image</div>
+        </div>
+    `;
+
+    resultBody.innerHTML = `
+        <div class="placeholder" style="padding:80px 20px">
+            <div class="placeholder-icon">🔬</div>
+            <div>Prediction result will appear here</div>
+        </div>
+    `;
+
+    CONFIDENCE_THRESHOLD = 0.90;
+    TOP_K = 5;
+
+    thresholdSlider.value = "0.90";
+    thresholdNumber.value = "0.90";
+    topKSelect.value = "5";
+
+    setStatus("Ready for a new prediction.", "info");
+});
+</script>
+</body>
+</html>
