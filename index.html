@@ -2,2755 +2,1178 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-
-<meta name="viewport"
-      content="width=device-width, initial-scale=1.0">
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0066a8">
 <title>Coral Species AI Classifier</title>
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIHJ4PSIyMiIgZmlsbD0iIzA4NzhjOSIvPgo8ZyBmaWxsPSJub25lIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj4KPHBhdGggZD0iTTUwIDg4VjYxTTUwIDcwQzM5IDY2IDMyIDU3IDM0IDQ3TTUwIDc4QzYxIDc1IDY5IDY3IDY4IDU2TTQyIDYxQzMxIDYwIDIyIDUzIDIwIDQ0TTU4IDYzQzcwIDYxIDc4IDUzIDgwIDQyTTM4IDQ5QzMwIDQzIDI5IDM0IDM0IDI3TTYyIDQ5QzcwIDQzIDcxIDM0IDY2IDI3Ii8+CjwvZz4KPC9zdmc+" type="image/svg+xml">
 
-<!-- =========================================================
-     TENSORFLOW.JS
-========================================================= -->
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
-
-<!-- =========================================================
-     TFLITE
-========================================================= -->
+<!-- TensorFlow.js + TFLite runtime -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.22.0/dist/tf-core.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-cpu@4.22.0/dist/tf-backend-cpu.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite@0.0.1-alpha.10/dist/tf-tflite.min.js"></script>
 
 <style>
-
-* {
-    box-sizing: border-box;
-}
-
-body {
-    margin: 0;
-    font-family: Arial, Helvetica, sans-serif;
-    background: #f3f6f9;
-    color: #222;
-}
-
-/* =========================================================
-   MAIN CONTAINER
-========================================================= */
-
-.container {
-    width: 100%;
-    max-width: 1900px;
-    margin: auto;
-    padding: 12px;
-}
-
-.title {
-    background: #087fba;
-    color: white;
-    padding: 18px;
-    border-radius: 10px;
-    text-align: center;
-    margin-bottom: 12px;
-    font-size: 28px;
-    font-weight: bold;
-}
-
-/* =========================================================
-   THREE COLUMNS
-========================================================= */
-
-.grid {
-    display: grid;
-    grid-template-columns: 30% 34% 36%;
-    gap: 14px;
-}
-
-@media(max-width: 1100px) {
-    .grid {
-        grid-template-columns: 1fr;
-    }
-}
-
-/* =========================================================
-   CARDS
-========================================================= */
-
-.card {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-    overflow: hidden;
-    margin-bottom: 14px;
-}
-
-.card-header {
-    background: #087fba;
-    color: white;
-    padding: 14px;
-    font-size: 20px;
-    font-weight: bold;
-}
-
-.card-body {
-    padding: 16px;
-}
-
-/* =========================================================
-   UPLOAD BOX
-========================================================= */
-
-.upload-box {
-    border: 1px solid #d6dce2;
-    border-radius: 12px;
-    padding: 15px;
-    margin-bottom: 12px;
-    background: #ffffff;
-}
-
-.upload-title {
-    font-size: 17px;
-    font-weight: bold;
-    margin-bottom: 5px;
-}
-
-.upload-info {
-    font-size: 13px;
-    color: #666;
-    margin-bottom: 10px;
-}
-
-.file-name {
-    margin-top: 8px;
-    color: #087fba;
-    font-size: 14px;
-    word-break: break-word;
-}
-
-input[type="file"] {
-    display: none;
-}
-
-.upload-button {
-    display: inline-block;
-    padding: 12px 18px;
-    border-radius: 8px;
-    color: white;
-    cursor: pointer;
-    font-weight: bold;
-    font-size: 15px;
-}
-
-.blue {
-    background: #087fba;
-}
-
-.gray {
-    background: #6c757d;
-}
-
-.green {
-    background: #138a4b;
-}
-
-.purple {
-    background: #7046c8;
-}
-
-.upload-button:hover {
-    opacity: 0.9;
-}
-
-/* =========================================================
-   SETTINGS
-========================================================= */
-
-.setting-row {
-    margin-bottom: 18px;
-}
-
-.setting-label {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 7px;
-    font-weight: bold;
-}
-
-.threshold-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-input[type="range"] {
-    flex: 1;
-}
-
-.threshold-input {
-    width: 80px;
-    padding: 8px;
-    border: 1px solid #bbb;
-    border-radius: 6px;
-    font-size: 16px;
-    text-align: center;
-}
-
-select {
-    padding: 8px;
-    font-size: 15px;
-    border-radius: 6px;
-}
-
-/* =========================================================
-   BUTTONS
-========================================================= */
-
-.button-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-top: 20px;
-}
-
-.main-button {
-    border: none;
-    border-radius: 8px;
-    padding: 14px;
-    font-size: 17px;
-    font-weight: bold;
-    cursor: pointer;
-}
-
-.predict {
-    background: #138a4b;
-    color: white;
-}
-
-.reset {
-    background: #e9edf1;
-    color: #222;
-}
-
-.main-button:hover {
-    opacity: 0.9;
-}
-
-/* =========================================================
-   STATUS
-========================================================= */
-
-.status {
-    padding: 12px;
-    border-radius: 8px;
-    margin-top: 12px;
-    font-size: 14px;
-    display: none;
-}
-
-.status.success {
-    display: block;
-    background: #e7f7ec;
-    color: #13743e;
-}
-
-.status.error {
-    display: block;
-    background: #fdecec;
-    color: #a51f1f;
-}
-
-.status.info {
-    display: block;
-    background: #eaf4fb;
-    color: #075f91;
-}
-
-/* =========================================================
-   IMAGE PREVIEW
-========================================================= */
-
-.preview-container {
-    width: 100%;
-    min-height: 480px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #eef5f9;
-    border-radius: 12px;
-    border: 1px solid #d8e1e8;
-    padding: 20px;
+*{box-sizing:border-box}
+body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f5f9fc;
+    color:#222;
+}
+.coral-app{width:100%;max-width:1500px;margin:auto;padding:14px}
+.coral-header{
+    background:linear-gradient(90deg,#0066a8,#008dcc,#0066a8);
+    color:white;
+    padding:18px 25px;
+    border-radius:12px 12px 0 0;
+    text-align:center;
+    box-shadow:0 3px 10px rgba(0,0,0,.15);
+}
+.coral-header-title{
+    font-size:30px;
+    font-weight:bold;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:12px;
+}
+.coral-logo{
+    width:48px;
+    height:48px;
+    color:#ffffff;
+    flex:0 0 auto;
+    filter:drop-shadow(0 2px 2px rgba(0,0,0,.18));
+}
+.coral-header-subtitle{font-size:15px;margin-top:5px;opacity:.95}
+
+.main-content{
+    display:grid;
+    grid-template-columns:32% 34% 34%;
+    gap:10px;
+    align-items:start;
+    margin-top:10px;
+}
+.panel{
+    background:white;
+    border-radius:10px;
+    border:1px solid #dce5ec;
+    box-shadow:0 2px 8px rgba(0,0,0,.08);
+    overflow:hidden;
+}
+.panel-header{
+    background:linear-gradient(90deg,#0878c9,#087db5);
+    color:white;
+    font-size:17px;
+    font-weight:bold;
+    padding:10px 14px;
+}
+.upload-card{
+    margin:10px;
+    padding:10px;
+    border:1px solid #cbdceb;
+    border-radius:10px;
+    background:#fff;
+}
+.upload-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+}
+.upload-title{font-weight:bold;font-size:14px}
+.upload-help{color:#777;font-size:11px;margin-top:3px}
+input[type=file]{display:none}
+.file-btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-width:125px;
+    height:38px;
+    padding:0 12px;
+    border-radius:6px;
+    border:0;
+    background:#0878c9;
+    color:white;
+    font-weight:bold;
+    cursor:pointer;
+}
+.file-btn.model{background:#6b7280}
+.file-btn.labels{background:#168548}
+.file-btn.faiss{background:#6944c5}
+.file-name{
+    margin-top:6px;
+    font-size:11px;
+    color:#1764a0;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+.settings{
+    padding:10px;
+    border-top:1px solid #e1e9ef;
+    margin-top:8px;
+}
+.settings-title{font-weight:bold;font-size:16px;margin-bottom:10px}
+.setting-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin:9px 0;
+}
+.setting-label{width:175px;font-size:13px}
+input[type=range]{flex:1}
+.threshold-number{
+    width:65px;
+    padding:5px;
+    border:1px solid #ccd8e0;
+    border-radius:5px;
+    text-align:center;
+}
+select{
+    padding:6px;
+    border:1px solid #ccd8e0;
+    border-radius:5px;
+}
+.action-row{padding:10px;display:flex;gap:8px}
+.action-btn{
+    flex:1;
+    height:45px;
+    border:0;
+    border-radius:7px;
+    cursor:pointer;
+    font-size:15px;
+    font-weight:bold;
+}
+.predict{background:#168548;color:white}
+.reset{background:#e9eef2;color:#333}
+.action-btn:disabled{opacity:.55;cursor:not-allowed}
+
+.image-container{padding:12px;background:white}
+.image-frame{
+    width:100%;
+    min-height:390px;
+    border-radius:10px;
+    background:#eef5f9;
+    border:1px solid #d5e1e8;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+}
+.image-frame img{
+    max-width:100%;
+    max-height:390px;
+    object-fit:contain;
+    border-radius:8px;
+}
+.placeholder{text-align:center;color:#777}
+.placeholder-icon{font-size:50px;margin-bottom:8px}
+
+.status{
+    text-align:center;
+    padding:9px;
+    font-size:13px;
+    min-height:34px;
+}
+.status.info{color:#1764a0}
+.status.success{color:#138a43}
+.status.error{color:#c62828}
+
+.result-panel{min-height:390px}
+.result-body{padding:0 0 10px}
+.accept-box,.reject-box{
+    border-radius:12px;
+    padding:18px;
+    text-align:center;
+    margin:12px;
+}
+.accept-box{background:#e8f7e9;border:1px solid #9bd79f}
+.reject-box{background:#fff0f0;border:1px solid #e5a0a0}
+.decision{font-size:30px;font-weight:bold;margin-bottom:8px}
+.class-card{
+    margin:12px;
+    padding:16px;
+    border-radius:10px;
+    background:#fffaf0;
+    border:1px solid #eee1c7;
+}
+.class-title{color:#333;font-size:13px;font-weight:bold}
+.class-name{font-size:23px;font-weight:bold;margin-top:5px;word-break:break-word}
+.confidence-card{
+    margin:12px;
+    padding:15px;
+    border-radius:10px;
+    background:#f8fbfe;
+    border:1px solid #dbe8f1;
+}
+.confidence-value{
+    font-size:31px;
+    font-weight:bold;
+    text-align:center;
+    margin:8px;
+}
+.confidence-bar{
+    height:13px;
+    background:#dfe8ee;
+    border-radius:10px;
+    overflow:hidden;
+}
+.confidence-fill{height:100%;border-radius:10px}
+.threshold-note{text-align:center;margin-top:8px;font-size:13px;color:#666}
+
+.top5-panel{margin-top:12px}
+.top5-header{
+    background:linear-gradient(90deg,#6944c5,#8059d8);
+    color:white;
+    padding:10px 15px;
+    font-size:17px;
+    font-weight:bold;
+}
+.top5-grid{
+    display:flex;
+    flex-wrap:wrap;
+    padding:5px;
+}
+.top5-card{
+    flex:1 1 120px;
+    background:white;
+    border:1px solid #d8e1e8;
+    border-radius:8px;
+    padding:10px;
+    text-align:center;
+    margin:5px;
+}
+.rank{
+    display:inline-block;
+    background:#0878c9;
+    color:white;
+    width:25px;
+    height:25px;
+    line-height:25px;
+    border-radius:50%;
+    font-weight:bold;
+    margin-bottom:5px;
+}
+.top5-name{
+    font-size:12px;
+    font-weight:bold;
+    min-height:35px;
+    word-break:break-word;
+}
+.top5-score{font-size:15px;font-weight:bold;margin-top:5px}
+.top5-bar{
+    height:8px;
+    background:#e3eaf0;
+    border-radius:10px;
+    margin-top:7px;
+    overflow:hidden;
+}
+.top5-fill{height:100%;background:#168ee5;border-radius:10px}
+
+.coral-footer-logo{
+    width:20px;
+    height:20px;
+    color:#1764a0;
+    vertical-align:middle;
+    margin-right:5px;
+}
+
+.faiss-description{
+    margin:12px;
+    padding:0;
+    border:1px solid #cfc3ed;
+    border-radius:12px;
+    background:#fbf9ff;
+    overflow:hidden;
+}
+.faiss-description-header{
+    background:linear-gradient(90deg,#6944c5,#8059d8);
+    color:white;
+    padding:10px 14px;
+    font-size:16px;
+    font-weight:bold;
+}
+.faiss-description-body{padding:14px}
+.faiss-species{
+    font-size:19px;
+    font-weight:bold;
+    color:#4f3598;
+    margin-bottom:7px;
+}
+.faiss-score{
+    display:inline-block;
+    background:#eee8ff;
+    color:#4f3598;
+    border-radius:15px;
+    padding:4px 9px;
+    font-size:12px;
+    font-weight:bold;
+    margin-bottom:10px;
+}
+.faiss-text{
+    font-size:13px;
+    line-height:1.55;
+    color:#333;
+    white-space:pre-wrap;
+}
+.faiss-sources{
+    margin-top:10px;
+    padding-top:9px;
+    border-top:1px solid #e2dcef;
+    color:#666;
+    font-size:11px;
+}
+
+.footer{
+    margin-top:12px;
+    padding:10px;
+    text-align:center;
+    color:#1764a0;
+    background:#e5f5ff;
+    border-radius:10px;
+    font-size:13px;
+}
+
+.hidden{display:none}
+.error-box{
+    margin:12px;
+    padding:12px;
+    border-radius:8px;
+    background:#fff0f0;
+    border:1px solid #e5a0a0;
+    color:#a32020;
+    font-size:13px;
+}
+
+@media(max-width:950px){
+    .main-content{grid-template-columns:1fr}
+    .coral-header-title{font-size:24px}
+    .image-frame{min-height:300px}
 }
-
-#previewImage {
-    max-width: 100%;
-    max-height: 450px;
-    border-radius: 10px;
-    display: none;
-    object-fit: contain;
-}
-
-.preview-placeholder {
-    color: #777;
-    text-align: center;
-    font-size: 17px;
-}
-
-/* =========================================================
-   ACCEPT / REJECT
-========================================================= */
-
-.decision {
-    padding: 25px;
-    border-radius: 14px;
-    text-align: center;
-    margin-bottom: 14px;
-}
-
-.accept {
-    background: #e8f8ea;
-    border: 1px solid #9ad6a4;
-}
-
-.reject {
-    background: #fff0f0;
-    border: 1px solid #e2a4a4;
-}
-
-.decision-title {
-    font-size: 38px;
-    font-weight: bold;
-}
-
-.accept .decision-title {
-    color: #0b8a4b;
-}
-
-.reject .decision-title {
-    color: #c62828;
-}
-
-.decision-subtitle {
-    font-size: 17px;
-    margin-top: 8px;
-}
-
-/* =========================================================
-   RESULT CARDS
-========================================================= */
-
-.result-box {
-    border: 1px solid #ddd;
-    border-radius: 12px;
-    padding: 18px;
-    margin-bottom: 14px;
-    background: white;
-}
-
-.result-title {
-    font-size: 17px;
-    font-weight: bold;
-    margin-bottom: 12px;
-}
-
-.predicted-class {
-    font-size: 30px;
-    font-weight: bold;
-    color: #222;
-}
-
-/* =========================================================
-   CONFIDENCE
-========================================================= */
-
-.confidence-value {
-    text-align: center;
-    font-size: 38px;
-    font-weight: bold;
-    color: #0b8a4b;
-    margin: 10px 0;
-}
-
-.progress {
-    height: 18px;
-    background: #e7e7e7;
-    border-radius: 20px;
-    overflow: hidden;
-}
-
-.progress-bar {
-    height: 100%;
-    background: #138a4b;
-    width: 0%;
-    transition: width 0.4s ease;
-}
-
-.metric {
-    text-align: center;
-    margin-top: 10px;
-    color: #555;
-}
-
-/* =========================================================
-   TOP K
-========================================================= */
-
-.top-k-item {
-    margin-bottom: 12px;
-}
-
-.top-k-header {
-    display: flex;
-    justify-content: space-between;
-    font-weight: bold;
-    margin-bottom: 4px;
-}
-
-.top-k-bar {
-    height: 12px;
-    background: #e8e8e8;
-    border-radius: 10px;
-    overflow: hidden;
-}
-
-.top-k-fill {
-    height: 100%;
-    background: #087fba;
-}
-
-/* =========================================================
-   FAISS
-========================================================= */
-
-.faiss-card {
-    border: 1px solid #d7c9f2;
-    border-radius: 12px;
-    overflow: hidden;
-    margin-top: 14px;
-}
-
-.faiss-header {
-    background: #7046c8;
-    color: white;
-    padding: 15px;
-    font-size: 20px;
-    font-weight: bold;
-}
-
-.faiss-body {
-    padding: 18px;
-    background: #fcfaff;
-}
-
-.faiss-species {
-    color: #4d2c91;
-    font-size: 25px;
-    font-weight: bold;
-    margin-bottom: 18px;
-}
-
-.faiss-description-title {
-    font-size: 17px;
-    font-weight: bold;
-    margin-bottom: 8px;
-}
-
-.faiss-description {
-    line-height: 1.7;
-    font-size: 16px;
-    text-align: justify;
-}
-
-.faiss-source-title {
-    font-weight: bold;
-    margin-top: 18px;
-    margin-bottom: 8px;
-}
-
-.faiss-sources {
-    padding-left: 20px;
-}
-
-.faiss-sources li {
-    margin-bottom: 7px;
-    word-break: break-word;
-}
-
-.faiss-sources a {
-    color: #4d2c91;
-}
-
-.faiss-match {
-    background: #e8f7ec;
-    border: 1px solid #a5d9b0;
-    border-radius: 8px;
-    padding: 10px;
-    margin-bottom: 14px;
-    color: #176d36;
-    font-weight: bold;
-}
-
-.faiss-not-found {
-    background: #fff4e5;
-    border: 1px solid #f0c36d;
-    border-radius: 8px;
-    padding: 15px;
-    color: #7a5200;
-}
-
-/* =========================================================
-   LOADING
-========================================================= */
-
-.loading {
-    display: none;
-    text-align: center;
-    padding: 15px;
-    font-weight: bold;
-    color: #087fba;
-}
-
-/* =========================================================
-   DEBUG
-========================================================= */
-
-.debug {
-    background: #111;
-    color: #00ff88;
-    border-radius: 8px;
-    padding: 12px;
-    font-family: monospace;
-    font-size: 12px;
-    max-height: 220px;
-    overflow-y: auto;
-    white-space: pre-wrap;
-}
-
-/* =========================================================
-   FOOTER
-========================================================= */
-
-.footer {
-    text-align: center;
-    color: #777;
-    padding: 20px;
-    font-size: 13px;
-}
-
 </style>
 </head>
 
 <body>
-
-<div class="container">
-
-    <div class="title">
-        🪸 Coral Species AI Classifier
-    </div>
-
-    <div class="grid">
-
-        <!-- =================================================
-             COLUMN 1
-        ================================================== -->
-
-        <div>
-
-            <div class="card">
-
-                <div class="card-header">
-                    ⬆ 1. Upload Files
-                </div>
-
-                <div class="card-body">
-
-                    <!-- IMAGE -->
-                    <div class="upload-box">
-
-                        <div class="upload-title">
-                            🖼️ Upload Image
-                        </div>
-
-                        <div class="upload-info">
-                            JPG, PNG, JPEG, WEBP
-                        </div>
-
-                        <label
-                            for="imageInput"
-                            class="upload-button blue">
-                            Choose Image
-                        </label>
-
-                        <input
-                            type="file"
-                            id="imageInput"
-                            accept="image/*">
-
-                        <div
-                            id="imageFileName"
-                            class="file-name">
-                        </div>
-
-                    </div>
-
-
-                    <!-- MODEL -->
-                    <div class="upload-box">
-
-                        <div class="upload-title">
-                            🧠 Upload Model
-                        </div>
-
-                        <div class="upload-info">
-                            TensorFlow Lite (.tflite)
-                        </div>
-
-                        <label
-                            for="modelInput"
-                            class="upload-button gray">
-                            Choose Model
-                        </label>
-
-                        <input
-                            type="file"
-                            id="modelInput"
-                            accept=".tflite">
-
-                        <div
-                            id="modelFileName"
-                            class="file-name">
-                        </div>
-
-                    </div>
-
-
-                    <!-- LABELS -->
-                    <div class="upload-box">
-
-                        <div class="upload-title">
-                            📄 Upload Labels
-                        </div>
-
-                        <div class="upload-info">
-                            Text file (.txt)
-                        </div>
-
-                        <label
-                            for="labelInput"
-                            class="upload-button green">
-                            Choose Labels
-                        </label>
-
-                        <input
-                            type="file"
-                            id="labelInput"
-                            accept=".txt">
-
-                        <div
-                            id="labelFileName"
-                            class="file-name">
-                        </div>
-
-                    </div>
-
-
-                    <!-- FAISS JSON -->
-                    <div class="upload-box">
-
-                        <div class="upload-title">
-                            🔎 FAISS Knowledge
-                        </div>
-
-                        <div class="upload-info">
-                            Top-1 descriptions (.json)
-                        </div>
-
-                        <label
-                            for="faissInput"
-                            class="upload-button purple">
-                            Choose FAISS JSON
-                        </label>
-
-                        <input
-                            type="file"
-                            id="faissInput"
-                            accept=".json,application/json">
-
-                        <div
-                            id="faissFileName"
-                            class="file-name">
-                        </div>
-
-                    </div>
-
-                </div>
-            </div>
-
-
-            <!-- =================================================
-                 SETTINGS
-            ================================================== -->
-
-            <div class="card">
-
-                <div class="card-header">
-                    ⚙️ 2. Settings
-                </div>
-
-                <div class="card-body">
-
-                    <div class="setting-row">
-
-                        <div class="setting-label">
-                            <span>Confidence Threshold</span>
-                        </div>
-
-                        <div class="threshold-row">
-
-                            <input
-                                type="range"
-                                id="thresholdSlider"
-                                min="0"
-                                max="1"
-                                step="0.01"
-                                value="0.90">
-
-                            <input
-                                type="number"
-                                id="thresholdInput"
-                                class="threshold-input"
-                                min="0"
-                                max="1"
-                                step="0.01"
-                                value="0.90">
-
-                        </div>
-
-                    </div>
-
-
-                    <div class="setting-row">
-
-                        <div class="setting-label">
-                            <span>Top-K Predictions</span>
-                        </div>
-
-                        <select id="topKSelect">
-
-                            <option value="3">3</option>
-                            <option value="5" selected>5</option>
-                            <option value="10">10</option>
-
-                        </select>
-
-                    </div>
-
-
-                    <div class="setting-row">
-
-                        <div class="setting-label">
-                            <span>Temperature</span>
-                        </div>
-
-                        <input
-                            type="number"
-                            id="temperatureInput"
-                            class="threshold-input"
-                            value="2.0"
-                            min="0.1"
-                            max="10"
-                            step="0.1">
-
-                    </div>
-
-
-                    <div class="button-row">
-
-                        <button
-                            class="main-button predict"
-                            id="predictButton">
-                            ▶ Predict
-                        </button>
-
-                        <button
-                            class="main-button reset"
-                            id="resetButton">
-                            ↻ Reset
-                        </button>
-
-                    </div>
-
-
-                    <div
-                        id="loading"
-                        class="loading">
-                        🔄 Processing...
-                    </div>
-
-                    <div
-                        id="status"
-                        class="status">
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <!-- =================================================
-                 DEBUG
-            ================================================== -->
-
-            <div class="card">
-
-                <div class="card-header">
-                    🔧 System Information
-                </div>
-
-                <div class="card-body">
-
-                    <div
-                        id="debug"
-                        class="debug">
-System ready...
-                    </div>
-
-                </div>
-
-            </div>
-
+<div class="coral-app">
+
+    <header class="coral-header">
+        <div class="coral-header-title">
+            <svg class="coral-logo" viewBox="0 0 100 100" aria-label="Coral icon" role="img">
+  <path d="M50 88V61M50 70C39 66 32 57 34 47M50 78C61 75 69 67 68 56M42 61C31 60 22 53 20 44M58 63C70 61 78 53 80 42M38 49C30 43 29 34 34 27M62 49C70 43 71 34 66 27"
+        fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="34" cy="27" r="5" fill="currentColor"/>
+  <circle cx="66" cy="27" r="5" fill="currentColor"/>
+  <circle cx="20" cy="44" r="5" fill="currentColor"/>
+  <circle cx="80" cy="42" r="5" fill="currentColor"/>
+  <circle cx="50" cy="61" r="6" fill="currentColor"/>
+</svg>
+            <span>Coral Species AI Classifier</span>
         </div>
+        <div class="coral-header-subtitle">
+            Deep Learning CNN-Based Coral Species Classification
+        </div>
+    </header>
 
+    <div class="main-content">
 
-        <!-- =================================================
-             COLUMN 2 - IMAGE
-        ================================================== -->
+        <!-- LEFT: UPLOAD + SETTINGS -->
+        <section class="panel">
+            <div class="panel-header">⬆ 1. Upload Files</div>
 
-        <div>
-
-            <div class="card">
-
-                <div class="card-header">
-                    🖼️ Image Preview
-                </div>
-
-                <div class="card-body">
-
-                    <div class="preview-container">
-
-                        <div
-                            id="previewPlaceholder"
-                            class="preview-placeholder">
-
-                            Upload an image to preview it.
-
-                        </div>
-
-                        <img
-                            id="previewImage"
-                            alt="Coral image preview">
-
+            <div class="upload-card">
+                <div class="upload-row">
+                    <div>
+                        <div class="upload-title">🖼️ Upload Image</div>
+                        <div class="upload-help">JPG, PNG, JPEG, WEBP</div>
                     </div>
-
+                    <label class="file-btn" for="imageInput">Choose Image</label>
+                    <input id="imageInput" type="file" accept="image/*">
                 </div>
-
+                <div id="imageFileName" class="file-name"></div>
             </div>
 
-        </div>
-
-
-        <!-- =================================================
-             COLUMN 3 - RESULTS
-        ================================================== -->
-
-        <div>
-
-            <div class="card">
-
-                <div class="card-header">
-                    📊 Prediction Result
+            <div class="upload-card">
+                <div class="upload-row">
+                    <div>
+                        <div class="upload-title">🧠 Upload Model</div>
+                        <div class="upload-help">TFLite (.tflite)</div>
+                    </div>
+                    <label class="file-btn model" for="modelInput">Choose Model</label>
+                    <input id="modelInput" type="file" accept=".tflite">
                 </div>
-
-                <div class="card-body">
-
-
-                    <!-- DECISION -->
-                    <div
-                        id="decisionBox"
-                        class="decision accept">
-
-                        <div
-                            id="decisionTitle"
-                            class="decision-title">
-                            ✓ ACCEPT
-                        </div>
-
-                        <div
-                            id="decisionSubtitle"
-                            class="decision-subtitle">
-                            Coral detected with high confidence
-                        </div>
-
-                    </div>
-
-
-                    <!-- PREDICTED CLASS -->
-                    <div class="result-box">
-
-                        <div class="result-title">
-                            🪸 Predicted Class
-                        </div>
-
-                        <div
-                            id="predictedClass"
-                            class="predicted-class">
-                            —
-                        </div>
-
-                    </div>
-
-
-                    <!-- CONFIDENCE -->
-                    <div class="result-box">
-
-                        <div class="result-title">
-                            🎯 CNN Confidence
-                        </div>
-
-                        <div
-                            id="confidenceValue"
-                            class="confidence-value">
-                            0.00%
-                        </div>
-
-                        <div class="progress">
-
-                            <div
-                                id="confidenceBar"
-                                class="progress-bar">
-                            </div>
-
-                        </div>
-
-                        <div
-                            id="thresholdDisplay"
-                            class="metric">
-                            Threshold: 90.00%
-                        </div>
-
-                        <div
-                            id="inferenceTime"
-                            class="metric">
-                            Inference Time: —
-                        </div>
-
-                    </div>
-
-
-                    <!-- TOP K -->
-                    <div class="result-box">
-
-                        <div class="result-title">
-                            🏆 Top-K Predictions
-                        </div>
-
-                        <div id="topKResults">
-                            No predictions yet.
-                        </div>
-
-                    </div>
-
-
-                    <!-- =================================================
-                         FAISS RESULT
-                    ================================================== -->
-
-                    <div class="faiss-card">
-
-                        <div class="faiss-header">
-                            🔎 FAISS Top-1 Retrieved Description
-                        </div>
-
-                        <div
-                            id="faissResult"
-                            class="faiss-body">
-
-                            <div class="faiss-not-found">
-                                Upload the FAISS knowledge JSON
-                                and run prediction.
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
+                <div id="modelFileName" class="file-name"></div>
             </div>
 
-        </div>
+            <div class="upload-card">
+                <div class="upload-row">
+                    <div>
+                        <div class="upload-title">📄 Upload Labels</div>
+                        <div class="upload-help">Text file (.txt)</div>
+                    </div>
+                    <label class="file-btn labels" for="labelsInput">Choose Labels</label>
+                    <input id="labelsInput" type="file" accept=".txt,text/plain">
+                </div>
+                <div id="labelsFileName" class="file-name"></div>
+            </div>
+
+            <div class="upload-card">
+                <div class="upload-row">
+                    <div>
+                        <div class="upload-title">🔎 FAISS Knowledge</div>
+                        <div class="upload-help">Top-1 descriptions (.json)</div>
+                    </div>
+                    <label class="file-btn faiss" for="faissInput">Choose FAISS JSON</label>
+                    <input id="faissInput" type="file" accept=".json,application/json">
+                </div>
+                <div id="faissFileName" class="file-name"></div>
+            </div>
+
+            <div class="settings">
+                <div class="settings-title">⚙️ 2. Settings</div>
+
+                <div class="setting-row">
+                    <div class="setting-label">Confidence Threshold</div>
+                    <input id="thresholdSlider" type="range"
+                           min="0.50" max="0.99" step="0.01" value="0.90">
+                    <input id="thresholdNumber" class="threshold-number"
+                           type="number" min="0" max="1" step="0.01" value="0.90">
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-label">Top-K Predictions</div>
+                    <select id="topK">
+                        <option value="3">3</option>
+                        <option value="5" selected>5</option>
+                        <option value="10">10</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="action-row">
+                <button id="predictButton" class="action-btn predict">▶ Predict</button>
+                <button id="resetButton" class="action-btn reset">⟳ Reset</button>
+            </div>
+        </section>
+
+        <!-- CENTER: IMAGE -->
+        <section class="panel">
+            <div class="panel-header">🖼️ Image Preview</div>
+            <div class="image-container">
+                <div id="imageFrame" class="image-frame">
+                    <div class="placeholder">
+                        <div class="placeholder-icon">🖼️</div>
+                        <div>Upload a coral image</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- RIGHT: RESULT -->
+        <section class="panel result-panel">
+            <div class="panel-header">📊 Prediction Result</div>
+            <div id="resultBody" class="result-body">
+                <div class="placeholder" style="padding:80px 20px">
+                    <div class="placeholder-icon">🔬</div>
+                    <div>Prediction result will appear here</div>
+                </div>
+            </div>
+        </section>
 
     </div>
 
+    <div id="status" class="status info">
+        Upload your image, CNN model, and labels.txt.
+    </div>
 
     <div class="footer">
-        Coral Species AI Classifier • CNN + Confidence Threshold + FAISS Knowledge Retrieval
+        <svg class="coral-footer-logo" viewBox="0 0 100 100" aria-label="Coral icon" role="img">
+  <path d="M50 88V61M50 70C39 66 32 57 34 47M50 78C61 75 69 67 68 56M42 61C31 60 22 53 20 44M58 63C70 61 78 53 80 42M38 49C30 43 29 34 34 27M62 49C70 43 71 34 66 27"
+        fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="34" cy="27" r="5" fill="currentColor"/>
+  <circle cx="66" cy="27" r="5" fill="currentColor"/>
+  <circle cx="20" cy="44" r="5" fill="currentColor"/>
+  <circle cx="80" cy="42" r="5" fill="currentColor"/>
+  <circle cx="50" cy="61" r="6" fill="currentColor"/>
+</svg>
+        Coral Species AI Classifier &nbsp; | &nbsp;
+        CNN-Based Deep Learning &nbsp; | &nbsp;
+        256 × 256 RGB
     </div>
-
 </div>
 
-
 <script>
+/* ============================================================
+   TENSORFLOW.JS / TFLITE RUNTIME SETUP
+   The TFLite package is WASM-based. Explicitly point it to the
+   package's dist/ directory so the WASM runtime can be found.
+   ============================================================ */
+tflite.setWasmPath(
+    "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite@0.0.1-alpha.10/wasm/"
+);
+
+const tfReady = (async () => {
+    await tf.setBackend("cpu");
+    await tf.ready();
+
+    if (tf.getBackend() !== "cpu") {
+        throw new Error("TensorFlow.js CPU backend could not be initialized.");
+    }
+})();
 
 /* ============================================================
-   GLOBAL VARIABLES
-============================================================ */
+   CORAL SPECIES AI CLASSIFIER
+   Browser version of the supplied Python GUI.
 
-let coralModel = null;
-
-let labels = [];
-
-let faissKnowledge = [];
-
-let selectedImageFile = null;
-
-let modelLoaded = false;
-
-let labelsLoaded = false;
-
-let faissLoaded = false;
-
-
-/* ============================================================
-   CONSTANTS
-============================================================ */
+   Pipeline:
+   Image -> 256x256 RGB -> /255 -> TFLite -> probabilities/logits
+   -> softmax when needed -> confidence -> threshold -> Top-K
+   ============================================================ */
 
 const IMAGE_SIZE = 256;
+let CONFIDENCE_THRESHOLD = 0.90;
+const TEMPERATURE = 2.0;
+let TOP_K = 5;
+const REJECTION_CLASS = "REJECTED / UNKNOWN";
 
-const NUM_CLASSES = 14;
+let imageFile = null;
+let modelFile = null;
+let labelsFile = null;
+let imageURL = null;
+let tfliteModel = null;
+let labels = [];
+let faissKnowledge = null;
 
+/* ---------- DOM ---------- */
+const imageInput = document.getElementById("imageInput");
+const modelInput = document.getElementById("modelInput");
+const labelsInput = document.getElementById("labelsInput");
+const faissInput = document.getElementById("faissInput");
 
-/* ============================================================
-   LABEL ORDER
-   MUST MATCH MODEL OUTPUT INDEX
-============================================================ */
+const imageFrame = document.getElementById("imageFrame");
+const resultBody = document.getElementById("resultBody");
+const statusBox = document.getElementById("status");
 
-const EXPECTED_LABELS = [
+const thresholdSlider = document.getElementById("thresholdSlider");
+const thresholdNumber = document.getElementById("thresholdNumber");
+const topKSelect = document.getElementById("topK");
 
-    "Acropora cervicornis",
-    "Acropora palmata",
-    "Colpophyllia natans",
-    "Diadema antillarum",
-    "Diploria strigosa",
-    "Gorgonians",
-    "Millepora alcicornis",
-    "Montastraea cavernosa",
-    "Meandrina meandrites",
-    "Montipora spp.",
-    "Palythoas palythoa",
-    "Sponges",
-    "Siderastrea siderea",
-    "Tunicates"
+const predictButton = document.getElementById("predictButton");
+const resetButton = document.getElementById("resetButton");
 
-];
-
-
-/* ============================================================
-   DOM
-============================================================ */
-
-const imageInput =
-    document.getElementById("imageInput");
-
-const modelInput =
-    document.getElementById("modelInput");
-
-const labelInput =
-    document.getElementById("labelInput");
-
-const faissInput =
-    document.getElementById("faissInput");
-
-const previewImage =
-    document.getElementById("previewImage");
-
-const previewPlaceholder =
-    document.getElementById("previewPlaceholder");
-
-const predictButton =
-    document.getElementById("predictButton");
-
-const resetButton =
-    document.getElementById("resetButton");
-
-const thresholdSlider =
-    document.getElementById("thresholdSlider");
-
-const thresholdInput =
-    document.getElementById("thresholdInput");
-
-const topKSelect =
-    document.getElementById("topKSelect");
-
-const temperatureInput =
-    document.getElementById("temperatureInput");
-
-const loading =
-    document.getElementById("loading");
-
-const statusBox =
-    document.getElementById("status");
-
-const debugBox =
-    document.getElementById("debug");
-
-
-/* ============================================================
-   DEBUG
-============================================================ */
-
-function debug(message) {
-
-    console.log(message);
-
-    const now =
-        new Date().toLocaleTimeString();
-
-    debugBox.textContent +=
-        `\n[${now}] ${message}`;
-
-    debugBox.scrollTop =
-        debugBox.scrollHeight;
-}
-
-
-/* ============================================================
-   STATUS
-============================================================ */
-
-function showStatus(message, type = "info") {
-
+/* ---------- Status ---------- */
+function setStatus(message, type = "info") {
     statusBox.textContent = message;
-
-    statusBox.className =
-        `status ${type}`;
+    statusBox.className = "status " + type;
 }
 
+/* ---------- File selection ---------- */
+imageInput.addEventListener("change", () => {
+    imageFile = imageInput.files[0] || null;
 
-/* ============================================================
-   THRESHOLD SYNCHRONIZATION
-============================================================ */
+    if (!imageFile) return;
 
-thresholdSlider.addEventListener(
-    "input",
-    function() {
+    document.getElementById("imageFileName").textContent =
+        "✓ " + imageFile.name;
 
-        thresholdInput.value =
-            Number(this.value).toFixed(2);
+    if (imageURL) URL.revokeObjectURL(imageURL);
+    imageURL = URL.createObjectURL(imageFile);
 
-    }
-);
+    imageFrame.innerHTML =
+        `<img src="${imageURL}" alt="Selected coral image">`;
 
+    setStatus("✓ Image loaded", "success");
+});
 
-thresholdInput.addEventListener(
-    "input",
-    function() {
+modelInput.addEventListener("change", () => {
+    modelFile = modelInput.files[0] || null;
 
-        let value =
-            parseFloat(this.value);
+    if (!modelFile) return;
 
-        if (isNaN(value)) {
-            value = 0.90;
-        }
+    document.getElementById("modelFileName").textContent =
+        "✓ " + modelFile.name;
 
-        value =
-            Math.max(0, Math.min(1, value));
+    tfliteModel = null;
+    setStatus("✓ CNN model selected", "success");
+});
 
-        thresholdSlider.value =
-            value;
+labelsInput.addEventListener("change", async () => {
+    labelsFile = labelsInput.files[0] || null;
 
-    }
-);
+    if (!labelsFile) return;
 
-
-/* ============================================================
-   IMAGE UPLOAD
-============================================================ */
-
-imageInput.addEventListener(
-    "change",
-    function(event) {
-
-        const file =
-            event.target.files[0];
-
-        if (!file) {
-            return;
-        }
-
-        selectedImageFile =
-            file;
-
-        document.getElementById(
-            "imageFileName"
-        ).textContent =
-            "✓ " + file.name;
-
-        const reader =
-            new FileReader();
-
-        reader.onload =
-            function(e) {
-
-                previewImage.src =
-                    e.target.result;
-
-                previewImage.style.display =
-                    "block";
-
-                previewPlaceholder.style.display =
-                    "none";
-
-            };
-
-        reader.readAsDataURL(file);
-
-        debug(
-            `Image loaded: ${file.name}`
-        );
-
-    }
-);
-
-
-/* ============================================================
-   MODEL UPLOAD
-============================================================ */
-
-modelInput.addEventListener(
-    "change",
-    async function(event) {
-
-        const file =
-            event.target.files[0];
-
-        if (!file) {
-            return;
-        }
-
-        document.getElementById(
-            "modelFileName"
-        ).textContent =
-            "✓ " + file.name;
-
-        try {
-
-            showStatus(
-                "Loading TensorFlow Lite model...",
-                "info"
-            );
-
-            debug(
-                `Loading model: ${file.name}`
-            );
-
-            const arrayBuffer =
-                await file.arrayBuffer();
-
-            coralModel =
-                await tflite.loadTFLiteModel(
-                    arrayBuffer,
-                    {
-                        numThreads: 1
-                    }
-                );
-
-            modelLoaded = true;
-
-            debug(
-                "TensorFlow Lite model loaded successfully."
-            );
-
-            showStatus(
-                "✓ Model loaded successfully.",
-                "success"
-            );
-
-        } catch(error) {
-
-            console.error(error);
-
-            modelLoaded = false;
-
-            debug(
-                "MODEL ERROR: " +
-                error.message
-            );
-
-            showStatus(
-                "Failed to load TFLite model: " +
-                error.message,
-                "error"
-            );
-
-        }
-
-    }
-);
-
-
-/* ============================================================
-   LABEL UPLOAD
-============================================================ */
-
-labelInput.addEventListener(
-    "change",
-    async function(event) {
-
-        const file =
-            event.target.files[0];
-
-        if (!file) {
-            return;
-        }
-
-        document.getElementById(
-            "labelFileName"
-        ).textContent =
-            "✓ " + file.name;
-
-        try {
-
-            const text =
-                await file.text();
-
-            labels =
-                text
-                    .split(/\r?\n/)
-                    .map(x => x.trim())
-                    .filter(x => x.length > 0);
-
-            labelsLoaded = true;
-
-            debug(
-                `Labels loaded: ${labels.length}`
-            );
-
-            labels.forEach(
-                (label, index) => {
-
-                    debug(
-                        `${index}: ${label}`
-                    );
-
-                }
-            );
-
-            if (labels.length !== NUM_CLASSES) {
-
-                showStatus(
-                    `Warning: ${labels.length} labels found. Model expects ${NUM_CLASSES}.`,
-                    "error"
-                );
-
-            } else {
-
-                showStatus(
-                    "✓ Labels loaded successfully.",
-                    "success"
-                );
-
-            }
-
-        } catch(error) {
-
-            labelsLoaded = false;
-
-            debug(
-                "LABEL ERROR: " +
-                error.message
-            );
-
-            showStatus(
-                "Unable to read labels.",
-                "error"
-            );
-
-        }
-
-    }
-);
-
-
-/* ============================================================
-   FAISS JSON UPLOAD
-============================================================ */
-
-faissInput.addEventListener(
-    "change",
-    async function(event) {
-
-        const file =
-            event.target.files[0];
-
-        if (!file) {
-            return;
-        }
-
-        document.getElementById(
-            "faissFileName"
-        ).textContent =
-            "✓ " + file.name;
-
-        try {
-
-            const text =
-                await file.text();
-
-            const json =
-                JSON.parse(text);
-
-            /*
-             IMPORTANT:
-
-             Your JSON is:
-
-             [
-               {
-                 "species_name": "...",
-                 "description": "...",
-                 "sources": [...]
-               }
-             ]
-            */
-
-            if (!Array.isArray(json)) {
-
-                throw new Error(
-                    "Expected JSON array of species records."
-                );
-
-            }
-
-            faissKnowledge =
-                json;
-
-            faissLoaded = true;
-
-            debug(
-                `FAISS knowledge loaded: ${json.length} records`
-            );
-
-            /*
-             Show species names loaded
-            */
-
-            json.forEach(
-                (item, index) => {
-
-                    debug(
-                        `FAISS ${index}: ${item.species_name}`
-                    );
-
-                }
-            );
-
-            showStatus(
-                `✓ FAISS knowledge loaded: ${json.length} records.`,
-                "success"
-            );
-
-        } catch(error) {
-
-            faissKnowledge = [];
-
-            faissLoaded = false;
-
-            debug(
-                "FAISS JSON ERROR: " +
-                error.message
-            );
-
-            showStatus(
-                "Invalid FAISS JSON: " +
-                error.message,
-                "error"
-            );
-
-        }
-
-    }
-);
-
-
-/* ============================================================
-   NORMALIZE SPECIES NAME
-============================================================ */
-
-function normalizeSpeciesName(name) {
-
-    return String(name || "")
-        .trim()
-        .toLowerCase()
-        .replace(/\s+/g, " ")
-        .replace(/[“”"]/g, "")
-        .replace(/[‘’']/g, "'");
-
-}
-
-
-/* ============================================================
-   FIND FAISS KNOWLEDGE
-============================================================ */
-
-function findFAISSDescription(
-    predictedSpecies
-) {
-
-    if (!faissLoaded ||
-        !Array.isArray(faissKnowledge)) {
-
-        debug(
-            "FAISS knowledge is not loaded."
-        );
-
-        return null;
-
-    }
-
-
-    const query =
-        normalizeSpeciesName(
-            predictedSpecies
-        );
-
-
-    debug(
-        `FAISS query: ${predictedSpecies}`
-    );
-
-
-    /*
-     =========================================================
-     EXACT SPECIES NAME MATCH
-     =========================================================
-    */
-
-    let record =
-        faissKnowledge.find(
-            item => {
-
-                if (!item) {
-                    return false;
-                }
-
-                return (
-                    normalizeSpeciesName(
-                        item.species_name
-                    ) === query
-                );
-
-            }
-        );
-
-
-    if (record) {
-
-        debug(
-            `FAISS MATCH: ${record.species_name}`
-        );
-
-        return record;
-
-    }
-
-
-    /*
-     =========================================================
-     FALLBACK CONTAINS MATCH
-     =========================================================
-    */
-
-    record =
-        faissKnowledge.find(
-            item => {
-
-                if (!item ||
-                    !item.species_name) {
-                    return false;
-                }
-
-                const name =
-                    normalizeSpeciesName(
-                        item.species_name
-                    );
-
-                return (
-                    name.includes(query) ||
-                    query.includes(name)
-                );
-
-            }
-        );
-
-
-    if (record) {
-
-        debug(
-            `FAISS FALLBACK MATCH: ${record.species_name}`
-        );
-
-        return record;
-
-    }
-
-
-    debug(
-        `FAISS NO MATCH: ${predictedSpecies}`
-    );
-
-    return null;
-
-}
-
-
-/* ============================================================
-   IMAGE → TENSOR
-============================================================ */
-
-async function imageToTensor(
-    imageElement
-) {
-
-    return tf.tidy(() => {
-
-        let tensor =
-            tf.browser.fromPixels(
-                imageElement
-            );
-
-        tensor =
-            tf.image.resizeBilinear(
-                tensor,
-                [
-                    IMAGE_SIZE,
-                    IMAGE_SIZE
-                ]
-            );
-
-        tensor =
-            tensor
-                .toFloat()
-                .div(255.0);
-
-        tensor =
-            tensor.expandDims(0);
-
-        return tensor;
-
-    });
-
-}
-
-
-/* ============================================================
-   SOFTMAX
-============================================================ */
-
-function softmax(values) {
-
-    const max =
-        Math.max(...values);
-
-    const exps =
-        values.map(
-            x => Math.exp(x - max)
-        );
-
-    const sum =
-        exps.reduce(
-            (a, b) => a + b,
-            0
-        );
-
-    return exps.map(
-        x => x / sum
-    );
-
-}
-
-
-/* ============================================================
-   TEMPERATURE SCALING
-============================================================ */
-
-function temperatureScale(
-    values,
-    temperature
-) {
-
-    temperature =
-        Math.max(
-            0.1,
-            Number(temperature)
-        );
-
-
-    /*
-     If the TFLite model already returns
-     probabilities, convert them back to
-     log-space before temperature scaling.
-    */
-
-    const sum =
-        values.reduce(
-            (a, b) => a + b,
-            0
-        );
-
-
-    const looksLikeProbability =
-        values.every(
-            x => x >= 0 && x <= 1
-        ) &&
-        Math.abs(sum - 1.0) < 0.01;
-
-
-    if (looksLikeProbability) {
-
-        const logits =
-            values.map(
-                p => Math.log(
-                    Math.max(p, 1e-8)
-                )
-            );
-
-        return softmax(
-            logits.map(
-                x => x / temperature
-            )
-        );
-
-    }
-
-
-    return softmax(
-        values.map(
-            x => x / temperature
-        )
-    );
-
-}
-
-
-/* ============================================================
-   GET LABEL
-============================================================ */
-
-function getLabel(index) {
-
-    if (
-        labels &&
-        labels[index]
-    ) {
-
-        return labels[index];
-
-    }
-
-    /*
-     Safety fallback using
-     your expected 14-class names.
-    */
-
-    if (
-        EXPECTED_LABELS[index]
-    ) {
-
-        return EXPECTED_LABELS[index];
-
-    }
-
-    return `Class ${index}`;
-
-}
-
-
-/* ============================================================
-   TOP K
-============================================================ */
-
-function getTopK(
-    probabilities,
-    k
-) {
-
-    return probabilities
-        .map(
-            (probability, index) => ({
-                index,
-                probability,
-                label: getLabel(index)
-            })
-        )
-        .sort(
-            (a, b) =>
-                b.probability -
-                a.probability
-        )
-        .slice(0, k);
-
-}
-
-
-/* ============================================================
-   DISPLAY TOP K
-============================================================ */
-
-function displayTopK(
-    predictions
-) {
-
-    const container =
-        document.getElementById(
-            "topKResults"
-        );
-
-    container.innerHTML = "";
-
-    predictions.forEach(
-        (prediction, index) => {
-
-            const percentage =
-                prediction.probability * 100;
-
-            const item =
-                document.createElement(
-                    "div"
-                );
-
-            item.className =
-                "top-k-item";
-
-            item.innerHTML = `
-
-                <div class="top-k-header">
-
-                    <span>
-                        ${index + 1}.
-                        ${escapeHTML(
-                            prediction.label
-                        )}
-                    </span>
-
-                    <span>
-                        ${percentage.toFixed(2)}%
-                    </span>
-
-                </div>
-
-                <div class="top-k-bar">
-
-                    <div
-                        class="top-k-fill"
-                        style="width:${Math.min(
-                            100,
-                            percentage
-                        )}%">
-                    </div>
-
-                </div>
-            `;
-
-            container.appendChild(
-                item
-            );
-
-        }
-    );
-
-}
-
-
-/* ============================================================
-   DISPLAY FAISS
-============================================================ */
-
-function displayFAISSResult(
-    speciesName,
-    record
-) {
-
-    const container =
-        document.getElementById(
-            "faissResult"
-        );
-
-
-    /*
-     =========================================================
-     NO MATCH
-     =========================================================
-    */
-
-    if (!record) {
-
-        container.innerHTML = `
-
-            <div class="faiss-not-found">
-
-                <strong>
-                    ⚠️ No FAISS description found
-                </strong>
-
-                <p>
-                    Predicted species:
-                    <strong>
-                        ${escapeHTML(speciesName)}
-                    </strong>
-                </p>
-
-                <p>
-                    The species was not found in
-                    <code>coral_species.json</code>.
-                </p>
-
-            </div>
-
-        `;
-
-        return;
-
-    }
-
-
-    /*
-     =========================================================
-     DESCRIPTION
-     =========================================================
-    */
-
-    const description =
-        record.description ||
-        "No description available.";
-
-
-    /*
-     =========================================================
-     SOURCES
-     =========================================================
-    */
-
-    let sourcesHTML = "";
-
-
-    if (
-        Array.isArray(record.sources) &&
-        record.sources.length > 0
-    ) {
-
-        sourcesHTML = `
-
-            <div class="faiss-source-title">
-                📚 Sources
-            </div>
-
-            <ul class="faiss-sources">
-
-                ${record.sources
-                    .map(
-                        source => `
-
-                        <li>
-
-                            <a
-                                href="${escapeAttribute(
-                                    source
-                                )}"
-                                target="_blank"
-                                rel="noopener noreferrer">
-
-                                ${escapeHTML(
-                                    source
-                                )}
-
-                            </a>
-
-                        </li>
-
-                    `
-                    )
-                    .join("")
-                }
-
-            </ul>
-        `;
-
-    }
-
-
-    /*
-     =========================================================
-     DISPLAY
-     =========================================================
-    */
-
-    container.innerHTML = `
-
-        <div class="faiss-match">
-
-            ✓ FAISS Top-1 Match Found
-
-        </div>
-
-
-        <div class="faiss-species">
-
-            ${escapeHTML(
-                record.species_name ||
-                speciesName
-            )}
-
-        </div>
-
-
-        <div class="faiss-description-title">
-
-            📖 Scientific Description
-
-        </div>
-
-
-        <div class="faiss-description">
-
-            ${escapeHTML(
-                description
-            )}
-
-        </div>
-
-
-        ${sourcesHTML}
-
-    `;
-
-
-    debug(
-        `FAISS description displayed for ${record.species_name}`
-    );
-
-}
-
-
-/* ============================================================
-   HTML ESCAPE
-============================================================ */
-
-function escapeHTML(value) {
-
-    return String(value || "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-
-}
-
-
-function escapeAttribute(value) {
-
-    return String(value || "")
-        .replace(/"/g, "&quot;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
-
-}
-
-
-/* ============================================================
-   DISPLAY DECISION
-============================================================ */
-
-function displayDecision(
-    accepted
-) {
-
-    const box =
-        document.getElementById(
-            "decisionBox"
-        );
-
-    const title =
-        document.getElementById(
-            "decisionTitle"
-        );
-
-    const subtitle =
-        document.getElementById(
-            "decisionSubtitle"
-        );
-
-
-    if (accepted) {
-
-        box.className =
-            "decision accept";
-
-        title.textContent =
-            "✓ ACCEPT";
-
-        subtitle.textContent =
-            "Coral detected with high confidence";
-
-    } else {
-
-        box.className =
-            "decision reject";
-
-        title.textContent =
-            "✕ REJECT";
-
-        subtitle.textContent =
-            "Prediction rejected by confidence threshold";
-
-    }
-
-}
-
-
-/* ============================================================
-   MAIN PREDICTION
-============================================================ */
-
-predictButton.addEventListener(
-    "click",
-    async function() {
-
-        try {
-
-            /* ===============================================
-               VALIDATION
-            =============================================== */
-
-            if (!selectedImageFile) {
-
-                showStatus(
-                    "Please upload an image.",
-                    "error"
-                );
-
-                return;
-
-            }
-
-
-            if (!modelLoaded ||
-                !coralModel) {
-
-                showStatus(
-                    "Please upload the TFLite model.",
-                    "error"
-                );
-
-                return;
-
-            }
-
-
-            if (!labelsLoaded) {
-
-                showStatus(
-                    "Please upload label.txt.",
-                    "error"
-                );
-
-                return;
-
-            }
-
-
-            if (!faissLoaded) {
-
-                showStatus(
-                    "Please upload coral_species.json.",
-                    "error"
-                );
-
-                return;
-
-            }
-
-
-            /* ===============================================
-               START
-            =============================================== */
-
-            loading.style.display =
-                "block";
-
-            predictButton.disabled =
-                true;
-
-            showStatus(
-                "Running CNN prediction...",
-                "info"
-            );
-
-
-            /* ===============================================
-               LOAD IMAGE
-            =============================================== */
-
-            const image =
-                new Image();
-
-            const imageURL =
-                URL.createObjectURL(
-                    selectedImageFile
-                );
-
-            image.src =
-                imageURL;
-
-
-            await new Promise(
-                (resolve, reject) => {
-
-                    image.onload =
-                        resolve;
-
-                    image.onerror =
-                        reject;
-
-                }
-            );
-
-
-            /* ===============================================
-               CREATE INPUT TENSOR
-            =============================================== */
-
-            const inputTensor =
-                await imageToTensor(
-                    image
-                );
-
-
-            /* ===============================================
-               INFERENCE
-            =============================================== */
-
-            await tf.nextFrame();
-
-            const startTime =
-                performance.now();
-
-
-            let output =
-                coralModel.predict(
-                    inputTensor
-                );
-
-
-            const endTime =
-                performance.now();
-
-
-            const inferenceMilliseconds =
-                endTime - startTime;
-
-
-            /* ===============================================
-               GET OUTPUT
-            =============================================== */
-
-            let outputTensor;
-
-
-            if (
-                Array.isArray(output)
-            ) {
-
-                outputTensor =
-                    output[0];
-
-            } else {
-
-                outputTensor =
-                    output;
-
-            }
-
-
-            const rawOutput =
-                Array.from(
-                    await outputTensor.data()
-                );
-
-
-            debug(
-                "Raw model output: " +
-                JSON.stringify(
-                    rawOutput
-                )
-            );
-
-
-            /* ===============================================
-               TEMPERATURE
-            =============================================== */
-
-            const temperature =
-                parseFloat(
-                    temperatureInput.value
-                ) || 2.0;
-
-
-            const probabilities =
-                temperatureScale(
-                    rawOutput,
-                    temperature
-                );
-
-
-            debug(
-                "Temperature-scaled probabilities: " +
-                JSON.stringify(
-                    probabilities
-                )
-            );
-
-
-            /* ===============================================
-               TOP K
-            =============================================== */
-
-            const topK =
-                parseInt(
-                    topKSelect.value
-                );
-
-
-            const predictions =
-                getTopK(
-                    probabilities,
-                    topK
-                );
-
-
-            const top1 =
-                predictions[0];
-
-
-            const predictedSpecies =
-                top1.label;
-
-
-            const confidence =
-                top1.probability;
-
-
-            /* ===============================================
-               THRESHOLD
-            =============================================== */
-
-            const threshold =
-                parseFloat(
-                    thresholdInput.value
-                ) || 0.90;
-
-
-            const accepted =
-                confidence >= threshold;
-
-
-            /* ===============================================
-               DISPLAY BASIC RESULT
-            =============================================== */
-
-            document.getElementById(
-                "predictedClass"
-            ).textContent =
-                predictedSpecies;
-
-
-            document.getElementById(
-                "confidenceValue"
-            ).textContent =
-                `${(
-                    confidence * 100
-                ).toFixed(2)}%`;
-
-
-            document.getElementById(
-                "confidenceBar"
-            ).style.width =
-                `${Math.min(
-                    100,
-                    confidence * 100
-                )}%`;
-
-
-            document.getElementById(
-                "thresholdDisplay"
-            ).textContent =
-                `Threshold: ${(
-                    threshold * 100
-                ).toFixed(2)}%`;
-
-
-            document.getElementById(
-                "inferenceTime"
-            ).textContent =
-                `Inference Time: ${inferenceMilliseconds.toFixed(2)} ms`;
-
-
-            /* ===============================================
-               TOP K DISPLAY
-            =============================================== */
-
-            displayTopK(
-                predictions
-            );
-
-
-            /* ===============================================
-               DECISION
-            =============================================== */
-
-            displayDecision(
-                accepted
-            );
-
-
-            /* ===============================================
-               FAISS
-            =============================================== */
-
-            /*
-             IMPORTANT:
-
-             Only retrieve the scientific description
-             when the prediction is ACCEPTED.
-
-             This prevents rejected/unknown predictions
-             from receiving a misleading species description.
-            */
-
-            if (accepted) {
-
-                debug(
-                    `Accepted prediction: ${predictedSpecies}`
-                );
-
-
-                const faissRecord =
-                    findFAISSDescription(
-                        predictedSpecies
-                    );
-
-
-                displayFAISSResult(
-                    predictedSpecies,
-                    faissRecord
-                );
-
-
-                if (faissRecord) {
-
-                    showStatus(
-                        "✓ Prediction accepted and FAISS description retrieved.",
-                        "success"
-                    );
-
-                } else {
-
-                    showStatus(
-                        "Prediction accepted, but no matching FAISS description was found.",
-                        "error"
-                    );
-
-                }
-
-            } else {
-
-                /*
-                 REJECTED RESULT
-                */
-
-                document.getElementById(
-                    "faissResult"
-                ).innerHTML = `
-
-                    <div class="faiss-not-found">
-
-                        <strong>
-                            ⚠️ FAISS retrieval not performed
-                        </strong>
-
-                        <p>
-                            The CNN confidence
-                            <strong>
-                                ${(confidence * 100).toFixed(2)}%
-                            </strong>
-                            is below the acceptance threshold
-                            of
-                            <strong>
-                                ${(threshold * 100).toFixed(2)}%
-                            </strong>.
-                        </p>
-
-                        <p>
-                            The prediction is therefore
-                            classified as
-                            <strong>REJECTED / UNKNOWN</strong>.
-                        </p>
-
-                    </div>
-
-                `;
-
-
-                showStatus(
-                    "Prediction rejected by confidence threshold.",
-                    "error"
-                );
-
-            }
-
-
-            /* ===============================================
-               CLEANUP
-            =============================================== */
-
-            inputTensor.dispose();
-
-            if (
-                outputTensor &&
-                typeof outputTensor.dispose ===
-                "function"
-            ) {
-
-                outputTensor.dispose();
-
-            }
-
-
-            URL.revokeObjectURL(
-                imageURL
-            );
-
-
-        } catch(error) {
-
-            console.error(error);
-
-            debug(
-                "PREDICTION ERROR: " +
-                error.stack
-            );
-
-            showStatus(
-                "Prediction failed: " +
-                error.message,
-                "error"
-            );
-
-        } finally {
-
-            loading.style.display =
-                "none";
-
-            predictButton.disabled =
-                false;
-
-        }
-
-    }
-);
-
-
-/* ============================================================
-   RESET
-============================================================ */
-
-resetButton.addEventListener(
-    "click",
-    function() {
-
-        selectedImageFile = null;
-
-        coralModel = null;
-
-        labels = [];
-
-        faissKnowledge = [];
-
-        modelLoaded = false;
-
-        labelsLoaded = false;
-
-        faissLoaded = false;
-
-
-        imageInput.value = "";
-
-        modelInput.value = "";
-
-        labelInput.value = "";
-
-        faissInput.value = "";
-
-
-        document.getElementById(
-            "imageFileName"
-        ).textContent = "";
-
-
-        document.getElementById(
-            "modelFileName"
-        ).textContent = "";
-
-
-        document.getElementById(
-            "labelFileName"
-        ).textContent = "";
-
-
-        document.getElementById(
-            "faissFileName"
-        ).textContent = "";
-
-
-        previewImage.src = "";
-
-        previewImage.style.display =
-            "none";
-
-        previewPlaceholder.style.display =
-            "block";
-
-
-        document.getElementById(
-            "predictedClass"
-        ).textContent = "—";
-
-
-        document.getElementById(
-            "confidenceValue"
-        ).textContent = "0.00%";
-
-
-        document.getElementById(
-            "confidenceBar"
-        ).style.width = "0%";
-
-
-        document.getElementById(
-            "inferenceTime"
-        ).textContent =
-            "Inference Time: —";
-
-
-        document.getElementById(
-            "topKResults"
-        ).innerHTML =
-            "No predictions yet.";
-
-
-        document.getElementById(
-            "faissResult"
-        ).innerHTML = `
-
-            <div class="faiss-not-found">
-
-                Upload the FAISS knowledge JSON
-                and run prediction.
-
-            </div>
-
-        `;
-
-
-        displayDecision(
-            true
-        );
-
-
-        debugBox.textContent =
-            "System reset.";
-
-
-        showStatus(
-            "System reset.",
-            "info"
-        );
-
-    }
-);
-
-
-/* ============================================================
-   INITIALIZATION
-============================================================ */
-
-async function initialize() {
+    document.getElementById("labelsFileName").textContent =
+        "✓ " + labelsFile.name;
 
     try {
+        const text = await labelsFile.text();
 
-        await tf.ready();
+        labels = text
+            .split(/\r?\n/)
+            .map(x => x.trim())
+            .filter(Boolean);
 
-        debug(
-            `TensorFlow.js ready: ${tf.version.tfjs}`
-        );
+        setStatus(`✓ ${labels.length} class labels loaded`, "success");
+    } catch (error) {
+        labels = [];
+        setStatus("Labels error: " + error.message, "error");
+    }
+});
 
-        debug(
-            "TFLite library initialized."
-        );
+/* ---------- FAISS knowledge export ---------- */
+faissInput.addEventListener("change", async () => {
+    const file = faissInput.files[0] || null;
 
-        debug(
-            `Input size: ${IMAGE_SIZE} × ${IMAGE_SIZE} × 3`
-        );
+    if (!file) return;
 
-        debug(
-            `Expected classes: ${NUM_CLASSES}`
-        );
+    document.getElementById("faissFileName").textContent =
+        "✓ " + file.name;
 
-        debug(
-            "Temperature scaling: enabled"
-        );
+    try {
+        const text = await file.text();
+        faissKnowledge = JSON.parse(text);
 
-        debug(
-            "Confidence threshold: 90%"
-        );
+        setStatus("✓ FAISS knowledge loaded", "success");
+    } catch (error) {
+        faissKnowledge = null;
+        setStatus("FAISS JSON error: " + error.message, "error");
+    }
+});
 
-        debug(
-            "FAISS species-name matching: enabled"
-        );
+/*
+ * Expected FAISS export formats:
+ *
+ * Format A:
+ * {
+ *   "ACER": {
+ *      "description": "...",
+ *      "score": 0.92,
+ *      "sources": ["source1", "source2"]
+ *   }
+ * }
+ *
+ * Format B:
+ * {
+ *   "results": {
+ *      "ACER": {
+ *         "description": "...",
+ *         "score": 0.92,
+ *         "sources": ["source1"]
+ *      }
+ *   }
+ * }
+ *
+ * Format C:
+ * {
+ *   "ACER": [
+ *      {"description":"...", "score":0.92, "source":"..."}
+ *   ]
+ * }
+ *
+ * The HTML does NOT perform FAISS itself. FAISS retrieval is
+ * performed offline; this JSON is the Top-1 result exported
+ * from the FAISS retrieval stage.
+ */
+function getFAISSTop1(speciesName) {
+    if (!faissKnowledge) return null;
 
-        showStatus(
-            "System ready. Upload the required files.",
-            "info"
-        );
+    const containers = [
+        faissKnowledge,
+        faissKnowledge.results,
+        faissKnowledge.data
+    ].filter(Boolean);
 
-    } catch(error) {
+    for (const container of containers) {
+        if (typeof container !== "object") continue;
 
-        debug(
-            "Initialization error: " +
-            error.message
-        );
+        let item = container[speciesName];
 
-        showStatus(
-            "TensorFlow initialization failed.",
-            "error"
-        );
+        if (item === undefined) {
+            const key = Object.keys(container).find(
+                k => k.toLowerCase() === speciesName.toLowerCase()
+            );
+            if (key) item = container[key];
+        }
 
+        if (Array.isArray(item)) {
+            item = item[0];
+        }
+
+        if (item && typeof item === "object") {
+            return {
+                description:
+                    item.description ||
+                    item.Description ||
+                    item.text ||
+                    item.content ||
+                    "",
+                score:
+                    item.score ??
+                    item.similarity ??
+                    item.distance ??
+                    null,
+                sources:
+                    item.sources ||
+                    item.Sources ||
+                    item.source ||
+                    item["Sources Used"] ||
+                    ""
+            };
+        }
     }
 
+    return null;
 }
 
+function normalizeSources(sources) {
+    if (Array.isArray(sources)) return sources.join(", ");
+    return sources ? String(sources) : "";
+}
 
-initialize();
+/* ---------- Settings ---------- */
+thresholdSlider.addEventListener("input", () => {
+    CONFIDENCE_THRESHOLD = parseFloat(thresholdSlider.value);
+    thresholdNumber.value = CONFIDENCE_THRESHOLD.toFixed(2);
+});
 
+thresholdNumber.addEventListener("input", () => {
+    let value = parseFloat(thresholdNumber.value);
+
+    if (!Number.isFinite(value)) return;
+
+    value = Math.max(0, Math.min(1, value));
+    CONFIDENCE_THRESHOLD = value;
+    thresholdSlider.value = value;
+});
+
+topKSelect.addEventListener("change", () => {
+    TOP_K = parseInt(topKSelect.value, 10);
+});
+
+/* ---------- Utilities ---------- */
+function softmaxWithTemperature(values, temperature = 1.0) {
+    const scaled = values.map(v => v / temperature);
+    const max = Math.max(...scaled);
+    const exps = scaled.map(v => Math.exp(v - max));
+    const sum = exps.reduce((a, b) => a + b, 0);
+    return exps.map(v => v / sum);
+}
+
+function isProbabilityDistribution(values) {
+    if (!values || values.length === 0) return false;
+
+    const validRange = values.every(
+        v => Number.isFinite(v) && v >= 0 && v <= 1
+    );
+
+    if (!validRange) return false;
+
+    const sum = values.reduce((a, b) => a + b, 0);
+
+    return Math.abs(sum - 1.0) < 0.01;
+}
+
+function topKPredictions(probabilities, k) {
+    return probabilities
+        .map((score, index) => ({ index, score }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, Math.min(k, probabilities.length));
+}
+
+function escapeHTML(value) {
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+/* ---------- Load TFLite model ---------- */
+async function loadModel() {
+    await tfReady;
+
+    if (typeof tflite === "undefined") {
+        throw new Error(
+            "TFLite runtime did not load. Check the internet connection and CDN access."
+        );
+    }
+
+    if (!modelFile) {
+        throw new Error("Please upload the TFLite model.");
+    }
+
+    if (tfliteModel) return tfliteModel;
+
+    setStatus("Loading CNN model...", "info");
+
+    /*
+     * Read the uploaded .tflite file directly into memory.
+     * This avoids Blob URL/path resolution problems.
+     */
+    const modelBuffer = await modelFile.arrayBuffer();
+
+    /*
+     * numThreads: 1 avoids requiring cross-origin isolation on
+     * Vercel and prevents the TFLite worker/WASM initialization
+     * path that can trigger the '_malloc' error.
+     */
+    tfliteModel = await tflite.loadTFLiteModel(
+        modelBuffer,
+        { numThreads: 1 }
+    );
+
+    return tfliteModel;
+}
+
+/* ---------- Image tensor ---------- */
+async function createInputTensor() {
+    if (!imageFile) {
+        throw new Error("Please upload an image.");
+    }
+
+    const bitmap = await createImageBitmap(imageFile);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = IMAGE_SIZE;
+    canvas.height = IMAGE_SIZE;
+
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+    /* Bilinear resize is the normal canvas resize behavior. */
+    ctx.drawImage(bitmap, 0, 0, IMAGE_SIZE, IMAGE_SIZE);
+
+    const imageTensor = tf.browser.fromPixels(canvas);
+
+    /* Same RGB normalization as the supplied Python code:
+       img_array /= 255.0 */
+    const inputTensor = tf.tidy(() => {
+        return tf.div(
+            tf.expandDims(imageTensor, 0),
+            255.0
+        );
+    });
+
+    imageTensor.dispose();
+    bitmap.close();
+
+    return inputTensor;
+}
+
+/* ---------- Prediction ---------- */
+async function predictCoral() {
+    if (!imageFile) {
+        throw new Error("Please upload an image.");
+    }
+
+    if (!modelFile) {
+        throw new Error("Please upload the TFLite model.");
+    }
+
+    if (!labelsFile || labels.length === 0) {
+        throw new Error("Please upload labels.txt.");
+    }
+
+    const model = await loadModel();
+    const inputTensor = await createInputTensor();
+
+    let outputTensor = null;
+    let probabilities = null;
+
+    try {
+        /*
+         * TFLite model inference.
+         * The supplied Python code uses:
+         * interpreter.invoke()
+         */
+        const start = performance.now();
+
+        outputTensor = model.predict(inputTensor);
+
+        /*
+         * Ensure the browser has materialized the output before
+         * measuring the inference operation.
+         */
+        let outputData;
+
+        if (outputTensor && typeof outputTensor.data === "function") {
+            outputData = Array.from(await outputTensor.data());
+        } else if (Array.isArray(outputTensor)) {
+            outputData = outputTensor.flat(Infinity);
+        } else {
+            throw new Error("The TFLite model returned an unsupported output.");
+        }
+
+        const end = performance.now();
+        const inferenceTime = end - start;
+
+        let output = outputData.map(Number);
+
+        /*
+         * Match the supplied Python/index prediction logic:
+         * - If output is already a probability distribution, use it.
+         * - Otherwise treat it as logits and apply temperature scaling.
+         */
+        if (isProbabilityDistribution(output)) {
+            probabilities = output;
+        } else {
+            probabilities = softmaxWithTemperature(
+                output,
+                TEMPERATURE
+            );
+        }
+
+        if (probabilities.length !== labels.length) {
+            throw new Error(
+                `Mismatch between model outputs (${probabilities.length}) ` +
+                `and labels (${labels.length}).`
+            );
+        }
+
+        const ranked = topKPredictions(probabilities, TOP_K);
+        const predicted = ranked[0];
+
+        const predictedClass = labels[predicted.index];
+        const confidence = predicted.score;
+
+        const accepted = confidence >= CONFIDENCE_THRESHOLD;
+
+        return {
+            predictedClass,
+            confidence,
+            accepted,
+            finalPrediction: accepted
+                ? predictedClass
+                : REJECTION_CLASS,
+            inferenceTime,
+            top5: ranked
+        };
+
+    } finally {
+        inputTensor.dispose();
+
+        if (outputTensor && typeof outputTensor.dispose === "function") {
+            outputTensor.dispose();
+        }
+    }
+}
+
+/* ---------- FAISS Top-1 description ---------- */
+function buildFAISSDescription(predictedClass) {
+    const item = getFAISSTop1(predictedClass);
+
+    if (!item) {
+        return `
+            <div class="faiss-description">
+                <div class="faiss-description-header">
+                    🔎 FAISS Top-1 Retrieved Description
+                </div>
+                <div class="faiss-description-body">
+                    <div class="faiss-species">${escapeHTML(predictedClass)}</div>
+                    <div class="faiss-text">
+                        No FAISS description was loaded for this predicted species.
+                        Upload the exported FAISS knowledge JSON to display the
+                        retrieved scientific description.
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    const scoreText =
+        item.score === null || item.score === undefined
+            ? "Top-1 retrieved result"
+            : `Similarity: ${Number(item.score).toFixed(4)}`;
+
+    const sources = normalizeSources(item.sources);
+
+    return `
+        <div class="faiss-description">
+            <div class="faiss-description-header">
+                🔎 FAISS Top-1 Retrieved Description
+            </div>
+            <div class="faiss-description-body">
+                <div class="faiss-species">
+                    ${escapeHTML(predictedClass)}
+                </div>
+
+                <div class="faiss-score">
+                    ${escapeHTML(scoreText)}
+                </div>
+
+                <div class="faiss-text">
+                    ${escapeHTML(item.description || "No description available.")}
+                </div>
+
+                ${
+                    sources
+                    ? `<div class="faiss-sources">
+                         <b>Sources:</b> ${escapeHTML(sources)}
+                       </div>`
+                    : ""
+                }
+            </div>
+        </div>
+    `;
+}
+
+/* ---------- Display result ---------- */
+function displayPrediction(result) {
+    const confidencePercent = result.confidence * 100;
+
+    const color = result.accepted ? "#138a43" : "#c62828";
+    const background = result.accepted ? "#e8f7e9" : "#ffebee";
+    const border = result.accepted ? "#9bd79f" : "#e5a0a0";
+    const icon = result.accepted ? "✓" : "✕";
+    const message = result.accepted
+        ? "Coral detected with high confidence"
+        : "Confidence below threshold";
+
+    const topCards = result.top5.map(item => {
+        const percent = item.score * 100;
+        const name =
+            item.index < labels.length
+                ? labels[item.index]
+                : `Class ${item.index}`;
+
+        return `
+            <div class="top5-card">
+                <div class="rank">${item.index === result.top5[0].index
+                    ? 1
+                    : result.top5.findIndex(x => x.index === item.index) + 1}</div>
+                <div class="top5-name">${escapeHTML(name)}</div>
+                <div class="top5-score">${percent.toFixed(2)}%</div>
+                <div class="top5-bar">
+                    <div class="top5-fill"
+                         style="width:${Math.min(percent,100)}%"></div>
+                </div>
+            </div>
+        `;
+    }).join("");
+
+    resultBody.innerHTML = `
+        <div class="${result.accepted ? "accept-box" : "reject-box"}"
+             style="background:${background};border-color:${border}">
+            <div class="decision" style="color:${color}">
+                ${icon} ${result.accepted ? "ACCEPT" : "REJECT"}
+            </div>
+            <div>${message}</div>
+        </div>
+
+        <div class="class-card">
+            <div class="class-title">🪸 Predicted Class</div>
+            <div class="class-name">
+                ${escapeHTML(result.finalPrediction)}
+            </div>
+        </div>
+
+        <div class="confidence-card">
+            <div class="class-title">🎯 CNN Confidence</div>
+
+            <div class="confidence-value" style="color:${color}">
+                ${confidencePercent.toFixed(2)}%
+            </div>
+
+            <div class="confidence-bar">
+                <div class="confidence-fill"
+                     style="width:${Math.min(confidencePercent,100)}%;
+                            background:${color}">
+                </div>
+            </div>
+
+            <div class="threshold-note">
+                Threshold: ${(CONFIDENCE_THRESHOLD * 100).toFixed(2)}%
+            </div>
+
+            <div class="threshold-note">
+                Inference Time: ${result.inferenceTime.toFixed(2)} ms
+            </div>
+        </div>
+
+        ${buildFAISSDescription(result.predictedClass)}
+
+        <div class="panel top5-panel">
+            <div class="top5-header">☷ Top-${TOP_K} Predictions</div>
+            <div class="top5-grid">${topCards}</div>
+        </div>
+    `;
+}
+
+/* ---------- Predict button ---------- */
+predictButton.addEventListener("click", async () => {
+    try {
+        predictButton.disabled = true;
+        setStatus("🔍 Analyzing image...", "info");
+
+        const result = await predictCoral();
+
+        displayPrediction(result);
+
+        setStatus("✓ Prediction completed", "success");
+
+    } catch (error) {
+        console.error(error);
+
+        resultBody.innerHTML = `
+            <div class="error-box">
+                <b>Prediction Error</b><br><br>
+                ${escapeHTML(error.message)}
+            </div>
+        `;
+
+        setStatus("Prediction failed", "error");
+
+    } finally {
+        predictButton.disabled = false;
+    }
+});
+
+/* ---------- Reset ---------- */
+resetButton.addEventListener("click", () => {
+    imageFile = null;
+    modelFile = null;
+    labelsFile = null;
+    labels = [];
+    faissKnowledge = null;
+    tfliteModel = null;
+
+    imageInput.value = "";
+    modelInput.value = "";
+    labelsInput.value = "";
+    faissInput.value = "";
+
+    document.getElementById("imageFileName").textContent = "";
+    document.getElementById("modelFileName").textContent = "";
+    document.getElementById("labelsFileName").textContent = "";
+    document.getElementById("faissFileName").textContent = "";
+
+    if (imageURL) {
+        URL.revokeObjectURL(imageURL);
+        imageURL = null;
+    }
+
+    imageFrame.innerHTML = `
+        <div class="placeholder">
+            <div class="placeholder-icon">🖼️</div>
+            <div>Upload a coral image</div>
+        </div>
+    `;
+
+    resultBody.innerHTML = `
+        <div class="placeholder" style="padding:80px 20px">
+            <div class="placeholder-icon">🔬</div>
+            <div>Prediction result will appear here</div>
+        </div>
+    `;
+
+    CONFIDENCE_THRESHOLD = 0.90;
+    TOP_K = 5;
+
+    thresholdSlider.value = "0.90";
+    thresholdNumber.value = "0.90";
+    topKSelect.value = "5";
+
+    setStatus("Ready for a new prediction.", "info");
+});
 </script>
-
 </body>
 </html>
