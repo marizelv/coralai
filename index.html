@@ -7,7 +7,7 @@
 <title>Coral Species AI Classifier</title>
 
 <!-- TensorFlow.js + TFLite runtime -->
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.22.0/dist/tf-core.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-cpu@4.22.0/dist/tf-backend-cpu.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite@0.0.1-alpha.10/dist/tf-tflite.min.js"></script>
 
@@ -406,12 +406,16 @@ select{
    package's dist/ directory so the WASM runtime can be found.
    ============================================================ */
 tflite.setWasmPath(
-    "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite@0.0.1-alpha.10/dist/"
+    "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite@0.0.1-alpha.10/wasm/"
 );
 
 const tfReady = (async () => {
     await tf.setBackend("cpu");
     await tf.ready();
+
+    if (tf.getBackend() !== "cpu") {
+        throw new Error("TensorFlow.js CPU backend could not be initialized.");
+    }
 })();
 
 /* ============================================================
@@ -588,14 +592,23 @@ async function loadModel() {
 
     setStatus("Loading CNN model...", "info");
 
-    const modelURL = URL.createObjectURL(modelFile);
+    /*
+     * Read the uploaded .tflite file directly into memory.
+     * This avoids Blob URL/path resolution problems.
+     */
+    const modelBuffer = await modelFile.arrayBuffer();
 
-    try {
-        tfliteModel = await tflite.loadTFLiteModel(modelURL);
-        return tfliteModel;
-    } finally {
-        URL.revokeObjectURL(modelURL);
-    }
+    /*
+     * numThreads: 1 avoids requiring cross-origin isolation on
+     * Vercel and prevents the TFLite worker/WASM initialization
+     * path that can trigger the '_malloc' error.
+     */
+    tfliteModel = await tflite.loadTFLiteModel(
+        modelBuffer,
+        { numThreads: 1 }
+    );
+
+    return tfliteModel;
 }
 
 /* ---------- Image tensor ---------- */
