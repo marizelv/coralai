@@ -8,6 +8,7 @@
 
 <!-- TensorFlow.js + TFLite runtime -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-cpu@4.22.0/dist/tf-backend-cpu.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite@0.0.1-alpha.10/dist/tf-tflite.min.js"></script>
 
 <style>
@@ -400,6 +401,20 @@ select{
 
 <script>
 /* ============================================================
+   TENSORFLOW.JS / TFLITE RUNTIME SETUP
+   The TFLite package is WASM-based. Explicitly point it to the
+   package's dist/ directory so the WASM runtime can be found.
+   ============================================================ */
+tflite.setWasmPath(
+    "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite@0.0.1-alpha.10/dist/"
+);
+
+const tfReady = (async () => {
+    await tf.setBackend("cpu");
+    await tf.ready();
+})();
+
+/* ============================================================
    CORAL SPECIES AI CLASSIFIER
    Browser version of the supplied Python GUI.
 
@@ -410,6 +425,7 @@ select{
 
 const IMAGE_SIZE = 256;
 let CONFIDENCE_THRESHOLD = 0.90;
+const TEMPERATURE = 2.0;
 let TOP_K = 5;
 const REJECTION_CLASS = "REJECTED / UNKNOWN";
 
@@ -516,9 +532,10 @@ topKSelect.addEventListener("change", () => {
 });
 
 /* ---------- Utilities ---------- */
-function softmax(values) {
-    const max = Math.max(...values);
-    const exps = values.map(v => Math.exp(v - max));
+function softmaxWithTemperature(values, temperature = 1.0) {
+    const scaled = values.map(v => v / temperature);
+    const max = Math.max(...scaled);
+    const exps = scaled.map(v => Math.exp(v - max));
     const sum = exps.reduce((a, b) => a + b, 0);
     return exps.map(v => v / sum);
 }
@@ -555,6 +572,14 @@ function escapeHTML(value) {
 
 /* ---------- Load TFLite model ---------- */
 async function loadModel() {
+    await tfReady;
+
+    if (typeof tflite === "undefined") {
+        throw new Error(
+            "TFLite runtime did not load. Check the internet connection and CDN access."
+        );
+    }
+
     if (!modelFile) {
         throw new Error("Please upload the TFLite model.");
     }
@@ -641,7 +666,15 @@ async function predictCoral() {
          * Ensure the browser has materialized the output before
          * measuring the inference operation.
          */
-        const outputData = Array.from(await outputTensor.data());
+        let outputData;
+
+        if (outputTensor && typeof outputTensor.data === "function") {
+            outputData = Array.from(await outputTensor.data());
+        } else if (Array.isArray(outputTensor)) {
+            outputData = outputTensor.flat(Infinity);
+        } else {
+            throw new Error("The TFLite model returned an unsupported output.");
+        }
 
         const end = performance.now();
         const inferenceTime = end - start;
@@ -649,14 +682,17 @@ async function predictCoral() {
         let output = outputData.map(Number);
 
         /*
-         * Match the supplied Python logic:
-         * If output already behaves like probabilities, use it.
-         * Otherwise apply Softmax.
+         * Match the supplied Python/index prediction logic:
+         * - If output is already a probability distribution, use it.
+         * - Otherwise treat it as logits and apply temperature scaling.
          */
         if (isProbabilityDistribution(output)) {
             probabilities = output;
         } else {
-            probabilities = softmax(output);
+            probabilities = softmaxWithTemperature(
+                output,
+                TEMPERATURE
+            );
         }
 
         if (probabilities.length !== labels.length) {
