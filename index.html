@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#0066a8">
 <title>Coral Species AI Classifier</title>
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIHJ4PSIyMiIgZmlsbD0iIzA4NzhjOSIvPgo8ZyBmaWxsPSJub25lIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj4KPHBhdGggZD0iTTUwIDg4VjYxTTUwIDcwQzM5IDY2IDMyIDU3IDM0IDQ3TTUwIDc4QzYxIDc1IDY5IDY3IDY4IDU2TTQyIDYxQzMxIDYwIDIyIDUzIDIwIDQ0TTU4IDYzQzcwIDYxIDc4IDUzIDgwIDQyTTM4IDQ5QzMwIDQzIDI5IDM0IDM0IDI3TTYyIDQ5QzcwIDQzIDcxIDM0IDY2IDI3Ii8+CjwvZz4KPC9zdmc+" type="image/svg+xml">
 
 <!-- TensorFlow.js + TFLite runtime -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.22.0/dist/tf-core.min.js"></script>
@@ -28,7 +29,21 @@ body{
     text-align:center;
     box-shadow:0 3px 10px rgba(0,0,0,.15);
 }
-.coral-header-title{font-size:30px;font-weight:bold}
+.coral-header-title{
+    font-size:30px;
+    font-weight:bold;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:12px;
+}
+.coral-logo{
+    width:48px;
+    height:48px;
+    color:#ffffff;
+    flex:0 0 auto;
+    filter:drop-shadow(0 2px 2px rgba(0,0,0,.18));
+}
 .coral-header-subtitle{font-size:15px;margin-top:5px;opacity:.95}
 
 .main-content{
@@ -84,6 +99,7 @@ input[type=file]{display:none}
 }
 .file-btn.model{background:#6b7280}
 .file-btn.labels{background:#168548}
+.file-btn.faiss{background:#6944c5}
 .file-name{
     margin-top:6px;
     font-size:11px;
@@ -254,6 +270,60 @@ select{
 }
 .top5-fill{height:100%;background:#168ee5;border-radius:10px}
 
+.coral-footer-logo{
+    width:20px;
+    height:20px;
+    color:#1764a0;
+    vertical-align:middle;
+    margin-right:5px;
+}
+
+.faiss-description{
+    margin:12px;
+    padding:0;
+    border:1px solid #cfc3ed;
+    border-radius:12px;
+    background:#fbf9ff;
+    overflow:hidden;
+}
+.faiss-description-header{
+    background:linear-gradient(90deg,#6944c5,#8059d8);
+    color:white;
+    padding:10px 14px;
+    font-size:16px;
+    font-weight:bold;
+}
+.faiss-description-body{padding:14px}
+.faiss-species{
+    font-size:19px;
+    font-weight:bold;
+    color:#4f3598;
+    margin-bottom:7px;
+}
+.faiss-score{
+    display:inline-block;
+    background:#eee8ff;
+    color:#4f3598;
+    border-radius:15px;
+    padding:4px 9px;
+    font-size:12px;
+    font-weight:bold;
+    margin-bottom:10px;
+}
+.faiss-text{
+    font-size:13px;
+    line-height:1.55;
+    color:#333;
+    white-space:pre-wrap;
+}
+.faiss-sources{
+    margin-top:10px;
+    padding-top:9px;
+    border-top:1px solid #e2dcef;
+    color:#666;
+    font-size:11px;
+}
+
 .footer{
     margin-top:12px;
     padding:10px;
@@ -287,7 +357,18 @@ select{
 <div class="coral-app">
 
     <header class="coral-header">
-        <div class="coral-header-title">🪸 Coral Species AI Classifier</div>
+        <div class="coral-header-title">
+            <svg class="coral-logo" viewBox="0 0 100 100" aria-label="Coral icon" role="img">
+  <path d="M50 88V61M50 70C39 66 32 57 34 47M50 78C61 75 69 67 68 56M42 61C31 60 22 53 20 44M58 63C70 61 78 53 80 42M38 49C30 43 29 34 34 27M62 49C70 43 71 34 66 27"
+        fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="34" cy="27" r="5" fill="currentColor"/>
+  <circle cx="66" cy="27" r="5" fill="currentColor"/>
+  <circle cx="20" cy="44" r="5" fill="currentColor"/>
+  <circle cx="80" cy="42" r="5" fill="currentColor"/>
+  <circle cx="50" cy="61" r="6" fill="currentColor"/>
+</svg>
+            <span>Coral Species AI Classifier</span>
+        </div>
         <div class="coral-header-subtitle">
             Deep Learning CNN-Based Coral Species Classification
         </div>
@@ -333,6 +414,18 @@ select{
                     <input id="labelsInput" type="file" accept=".txt,text/plain">
                 </div>
                 <div id="labelsFileName" class="file-name"></div>
+            </div>
+
+            <div class="upload-card">
+                <div class="upload-row">
+                    <div>
+                        <div class="upload-title">🔎 FAISS Knowledge</div>
+                        <div class="upload-help">Top-1 descriptions (.json)</div>
+                    </div>
+                    <label class="file-btn faiss" for="faissInput">Choose FAISS JSON</label>
+                    <input id="faissInput" type="file" accept=".json,application/json">
+                </div>
+                <div id="faissFileName" class="file-name"></div>
             </div>
 
             <div class="settings">
@@ -393,7 +486,16 @@ select{
     </div>
 
     <div class="footer">
-        🪸 Coral Species AI Classifier &nbsp; | &nbsp;
+        <svg class="coral-footer-logo" viewBox="0 0 100 100" aria-label="Coral icon" role="img">
+  <path d="M50 88V61M50 70C39 66 32 57 34 47M50 78C61 75 69 67 68 56M42 61C31 60 22 53 20 44M58 63C70 61 78 53 80 42M38 49C30 43 29 34 34 27M62 49C70 43 71 34 66 27"
+        fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="34" cy="27" r="5" fill="currentColor"/>
+  <circle cx="66" cy="27" r="5" fill="currentColor"/>
+  <circle cx="20" cy="44" r="5" fill="currentColor"/>
+  <circle cx="80" cy="42" r="5" fill="currentColor"/>
+  <circle cx="50" cy="61" r="6" fill="currentColor"/>
+</svg>
+        Coral Species AI Classifier &nbsp; | &nbsp;
         CNN-Based Deep Learning &nbsp; | &nbsp;
         256 × 256 RGB
     </div>
@@ -439,11 +541,13 @@ let labelsFile = null;
 let imageURL = null;
 let tfliteModel = null;
 let labels = [];
+let faissKnowledge = null;
 
 /* ---------- DOM ---------- */
 const imageInput = document.getElementById("imageInput");
 const modelInput = document.getElementById("modelInput");
 const labelsInput = document.getElementById("labelsInput");
+const faissInput = document.getElementById("faissInput");
 
 const imageFrame = document.getElementById("imageFrame");
 const resultBody = document.getElementById("resultBody");
@@ -514,6 +618,116 @@ labelsInput.addEventListener("change", async () => {
         setStatus("Labels error: " + error.message, "error");
     }
 });
+
+/* ---------- FAISS knowledge export ---------- */
+faissInput.addEventListener("change", async () => {
+    const file = faissInput.files[0] || null;
+
+    if (!file) return;
+
+    document.getElementById("faissFileName").textContent =
+        "✓ " + file.name;
+
+    try {
+        const text = await file.text();
+        faissKnowledge = JSON.parse(text);
+
+        setStatus("✓ FAISS knowledge loaded", "success");
+    } catch (error) {
+        faissKnowledge = null;
+        setStatus("FAISS JSON error: " + error.message, "error");
+    }
+});
+
+/*
+ * Expected FAISS export formats:
+ *
+ * Format A:
+ * {
+ *   "ACER": {
+ *      "description": "...",
+ *      "score": 0.92,
+ *      "sources": ["source1", "source2"]
+ *   }
+ * }
+ *
+ * Format B:
+ * {
+ *   "results": {
+ *      "ACER": {
+ *         "description": "...",
+ *         "score": 0.92,
+ *         "sources": ["source1"]
+ *      }
+ *   }
+ * }
+ *
+ * Format C:
+ * {
+ *   "ACER": [
+ *      {"description":"...", "score":0.92, "source":"..."}
+ *   ]
+ * }
+ *
+ * The HTML does NOT perform FAISS itself. FAISS retrieval is
+ * performed offline; this JSON is the Top-1 result exported
+ * from the FAISS retrieval stage.
+ */
+function getFAISSTop1(speciesName) {
+    if (!faissKnowledge) return null;
+
+    const containers = [
+        faissKnowledge,
+        faissKnowledge.results,
+        faissKnowledge.data
+    ].filter(Boolean);
+
+    for (const container of containers) {
+        if (typeof container !== "object") continue;
+
+        let item = container[speciesName];
+
+        if (item === undefined) {
+            const key = Object.keys(container).find(
+                k => k.toLowerCase() === speciesName.toLowerCase()
+            );
+            if (key) item = container[key];
+        }
+
+        if (Array.isArray(item)) {
+            item = item[0];
+        }
+
+        if (item && typeof item === "object") {
+            return {
+                description:
+                    item.description ||
+                    item.Description ||
+                    item.text ||
+                    item.content ||
+                    "",
+                score:
+                    item.score ??
+                    item.similarity ??
+                    item.distance ??
+                    null,
+                sources:
+                    item.sources ||
+                    item.Sources ||
+                    item.source ||
+                    item["Sources Used"] ||
+                    ""
+            };
+        }
+    }
+
+    return null;
+}
+
+function normalizeSources(sources) {
+    if (Array.isArray(sources)) return sources.join(", ");
+    return sources ? String(sources) : "";
+}
 
 /* ---------- Settings ---------- */
 thresholdSlider.addEventListener("input", () => {
@@ -743,6 +957,65 @@ async function predictCoral() {
     }
 }
 
+/* ---------- FAISS Top-1 description ---------- */
+function buildFAISSDescription(predictedClass) {
+    const item = getFAISSTop1(predictedClass);
+
+    if (!item) {
+        return `
+            <div class="faiss-description">
+                <div class="faiss-description-header">
+                    🔎 FAISS Top-1 Retrieved Description
+                </div>
+                <div class="faiss-description-body">
+                    <div class="faiss-species">${escapeHTML(predictedClass)}</div>
+                    <div class="faiss-text">
+                        No FAISS description was loaded for this predicted species.
+                        Upload the exported FAISS knowledge JSON to display the
+                        retrieved scientific description.
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    const scoreText =
+        item.score === null || item.score === undefined
+            ? "Top-1 retrieved result"
+            : `Similarity: ${Number(item.score).toFixed(4)}`;
+
+    const sources = normalizeSources(item.sources);
+
+    return `
+        <div class="faiss-description">
+            <div class="faiss-description-header">
+                🔎 FAISS Top-1 Retrieved Description
+            </div>
+            <div class="faiss-description-body">
+                <div class="faiss-species">
+                    ${escapeHTML(predictedClass)}
+                </div>
+
+                <div class="faiss-score">
+                    ${escapeHTML(scoreText)}
+                </div>
+
+                <div class="faiss-text">
+                    ${escapeHTML(item.description || "No description available.")}
+                </div>
+
+                ${
+                    sources
+                    ? `<div class="faiss-sources">
+                         <b>Sources:</b> ${escapeHTML(sources)}
+                       </div>`
+                    : ""
+                }
+            </div>
+        </div>
+    `;
+}
+
 /* ---------- Display result ---------- */
 function displayPrediction(result) {
     const confidencePercent = result.confidence * 100;
@@ -816,6 +1089,8 @@ function displayPrediction(result) {
             </div>
         </div>
 
+        ${buildFAISSDescription(result.predictedClass)}
+
         <div class="panel top5-panel">
             <div class="top5-header">☷ Top-${TOP_K} Predictions</div>
             <div class="top5-grid">${topCards}</div>
@@ -858,15 +1133,18 @@ resetButton.addEventListener("click", () => {
     modelFile = null;
     labelsFile = null;
     labels = [];
+    faissKnowledge = null;
     tfliteModel = null;
 
     imageInput.value = "";
     modelInput.value = "";
     labelsInput.value = "";
+    faissInput.value = "";
 
     document.getElementById("imageFileName").textContent = "";
     document.getElementById("modelFileName").textContent = "";
     document.getElementById("labelsFileName").textContent = "";
+    document.getElementById("faissFileName").textContent = "";
 
     if (imageURL) {
         URL.revokeObjectURL(imageURL);
